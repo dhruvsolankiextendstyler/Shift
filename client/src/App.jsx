@@ -1,4 +1,5 @@
 import CheckIn from "./components/CheckIn";
+import Tasks from "./pages/Tasks";
 
 function App() {
     return (
@@ -7,6 +8,8 @@ function App() {
             <p>Your state changes. Your next move shifts.</p>
 
             <CheckIn />
+
+            <Tasks />
         </div>
     );
 }

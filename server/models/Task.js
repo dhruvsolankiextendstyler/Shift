@@ -27,7 +27,7 @@ const taskSchema = new mongoose.Schema(
 
         status: {
             type: String,
-            enum: ["active", "completed"],
+            enum: ["active", "completed", "deleted"],
             default: "active"
         }
     },
@@ -37,4 +37,3 @@ const taskSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model("Task", taskSchema);
-

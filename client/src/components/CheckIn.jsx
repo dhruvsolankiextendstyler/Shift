@@ -4,10 +4,11 @@ function CheckIn() {
     const [mood, setMood] = useState("");
     const [energy, setEnergy] = useState("");
     const [time, setTime] = useState("");
+    const [message, setMessage] = useState("");
 
     const handleSubmit = async () => {
         if (!mood || !energy || !time) {
-            alert("Complete your check-in first.");
+            setMessage("Complete your check-in first.");
             return;
         }
 
@@ -17,7 +18,30 @@ function CheckIn() {
             availableTime: time
         };
 
-        console.log("Check-in:", checkInData);
+        try {
+            const response = await fetch(
+                "http://localhost:5000/api/sessions",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(checkInData)
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to save check-in");
+            }
+
+            console.log("Saved session:", data);
+            setMessage("Check-in saved ⚡");
+        } catch (error) {
+            console.error(error);
+            setMessage("Something went wrong.");
+        }
     };
 
     return (
@@ -57,6 +81,8 @@ function CheckIn() {
             <button onClick={handleSubmit}>
                 SHIFT →
             </button>
+
+            <p>{message}</p>
 
             <hr />
 
