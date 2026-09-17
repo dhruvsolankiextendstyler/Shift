@@ -1,16 +1,26 @@
-import CheckIn from "./components/CheckIn";
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import Now from "./pages/Now";
 import Tasks from "./pages/Tasks";
+import History from "./pages/History";
+import Insights from "./pages/Insights";
 
 function App() {
     return (
-        <div>
-            <h1>SHIFT ⚡</h1>
-            <p>Your state changes. Your next move shifts.</p>
+        <BrowserRouter>
+            <nav>
+                <Link to="/">NOW</Link>{" "}
+                <Link to="/tasks">TASKS</Link>{" "}
+                <Link to="/history">HISTORY</Link>{" "}
+                <Link to="/insights">INSIGHTS</Link>
+            </nav>
 
-            <CheckIn />
-
-            <Tasks />
-        </div>
+            <Routes>
+                <Route path="/" element={<Now />} />
+                <Route path="/tasks" element={<Tasks />} />
+                <Route path="/history" element={<History />} />
+                <Route path="/insights" element={<Insights />} />
+            </Routes>
+        </BrowserRouter>
     );
 }
 
