@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link, NavLink } from "react-router-dom";
 
 import Now from "./pages/Now";
 import Tasks from "./pages/Tasks";
@@ -15,10 +15,10 @@ function App() {
                     </Link>
 
                     <nav>
-                        <Link to="/">NOW</Link>
-                        <Link to="/tasks">TASKS</Link>
-                        <Link to="/history">HISTORY</Link>
-                        <Link to="/insights">INSIGHTS</Link>
+                        <NavLink to="/" end>NOW</NavLink>
+                        <NavLink to="/tasks">TASKS</NavLink>
+                        <NavLink to="/history">HISTORY</NavLink>
+                        <NavLink to="/insights">INSIGHTS</NavLink>
                     </nav>
                 </header>
 
