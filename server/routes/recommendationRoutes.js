@@ -10,7 +10,10 @@ router.post("/", async (req, res) => {
     try {
         const { sessionId } = req.body;
 
-        const session = await Session.findById(sessionId);
+        const session = await Session.findOne({
+            _id: sessionId,
+            user: req.userId
+        });
 
         if (!session) {
             return res.status(404).json({
@@ -19,10 +22,11 @@ router.post("/", async (req, res) => {
         }
 
         const tasks = await Task.find({
+            user: req.userId,
             status: "active"
         });
 
-        const recentActions = await Action.find()
+        const recentActions = await Action.find({ user: req.userId })
             .populate("taskId")
             .sort({ createdAt: -1 })
             .limit(10);
@@ -45,7 +49,7 @@ router.post("/", async (req, res) => {
             availableTasks = tasks;
         }
 
-        const pastActions = await Action.find()
+        const pastActions = await Action.find({ user: req.userId })
             .populate("taskId")
             .sort({ createdAt: -1 });
 

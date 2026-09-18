@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import API_URL from "../services/api";
+import { apiFetch } from "../services/api";
 
 function History() {
     const [actions, setActions] = useState([]);
@@ -8,7 +8,7 @@ function History() {
     useEffect(() => {
         const fetchHistory = async () => {
             try {
-                const response = await fetch(`${API_URL}/actions`);
+                const response = await apiFetch("/actions");
                 const data = await response.json();
                 setActions(data);
             } catch (error) {

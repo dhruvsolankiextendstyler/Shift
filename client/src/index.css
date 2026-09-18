@@ -143,6 +143,61 @@ a {
     border-radius: 2px;
 }
 
+.nav-user {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+}
+
+.nav-user-name {
+    color: var(--text-muted);
+}
+
+.app-loading {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 80px 0;
+}
+
+/* ============================================================
+   Auth
+   ============================================================ */
+
+.auth-page {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--space-4);
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+}
+
+.auth-card .hero {
+    margin-bottom: var(--space-6);
+}
+
+.auth-card .hero h1 {
+    font-size: 34px;
+}
+
+.auth-switch {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    margin-top: var(--space-4);
+}
+
+.auth-switch .text-button {
+    color: var(--text);
+    font-weight: 700;
+    text-decoration: underline;
+}
+
 /* ============================================================
    Layout
    ============================================================ */

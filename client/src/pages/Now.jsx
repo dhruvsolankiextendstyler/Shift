@@ -1,5 +1,5 @@
 import { useState } from "react";
-import API_URL from "../services/api";
+import { apiFetch } from "../services/api";
 
 function Now() {
     const [mood, setMood] = useState("");
@@ -23,20 +23,14 @@ function Now() {
         setLoading(true);
 
         try {
-            const sessionResponse = await fetch(
-                `${API_URL}/sessions`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        mood,
-                        energy,
-                        availableTime: time
-                    })
-                }
-            );
+            const sessionResponse = await apiFetch("/sessions", {
+                method: "POST",
+                body: JSON.stringify({
+                    mood,
+                    energy,
+                    availableTime: time
+                })
+            });
 
             const sessionData = await sessionResponse.json();
 
@@ -46,13 +40,10 @@ function Now() {
 
             setSessionId(sessionData._id);
 
-            const recommendationResponse = await fetch(
-                `${API_URL}/recommendation`,
+            const recommendationResponse = await apiFetch(
+                "/recommendation",
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
                     body: JSON.stringify({
                         sessionId: sessionData._id
                     })
@@ -78,19 +69,13 @@ function Now() {
 
     const startAction = async () => {
         try {
-            const response = await fetch(
-                `${API_URL}/actions`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        sessionId,
-                        taskId: recommendation._id
-                    })
-                }
-            );
+            const response = await apiFetch("/actions", {
+                method: "POST",
+                body: JSON.stringify({
+                    sessionId,
+                    taskId: recommendation._id
+                })
+            });
 
             const data = await response.json();
 
@@ -108,13 +93,10 @@ function Now() {
 
     const completeAction = async () => {
         try {
-            const actionResponse = await fetch(
-                `${API_URL}/actions/${actionId}`,
+            const actionResponse = await apiFetch(
+                `/actions/${actionId}`,
                 {
                     method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
                     body: JSON.stringify({
                         status: "completed",
                         completedAt: new Date()
@@ -126,18 +108,12 @@ function Now() {
                 throw new Error("Failed to complete action.");
             }
 
-            await fetch(
-                `${API_URL}/tasks/${recommendation._id}`,
-                {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        status: "completed"
-                    })
-                }
-            );
+            await apiFetch(`/tasks/${recommendation._id}`, {
+                method: "PUT",
+                body: JSON.stringify({
+                    status: "completed"
+                })
+            });
 
             setShowFeedback(true);
             setMessage("");
@@ -149,13 +125,10 @@ function Now() {
 
     const skipAction = async () => {
         try {
-            const response = await fetch(
-                `${API_URL}/actions/${actionId}`,
+            const response = await apiFetch(
+                `/actions/${actionId}`,
                 {
                     method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
                     body: JSON.stringify({
                         status: "skipped"
                     })
@@ -175,13 +148,10 @@ function Now() {
 
     const submitFeedback = async (feedback) => {
         try {
-            const response = await fetch(
-                `${API_URL}/actions/${actionId}`,
+            const response = await apiFetch(
+                `/actions/${actionId}`,
                 {
                     method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
                     body: JSON.stringify({
                         feedback
                     })

@@ -1,15 +1,33 @@
 const express = require("express");
 const Action = require("../models/Action");
+const Session = require("../models/Session");
+const Task = require("../models/Task");
 
 const router = express.Router();
 
 // START ACTION
 router.post("/", async (req, res) => {
     try {
+        const { sessionId, taskId } = req.body;
+
+        // Confirm the referenced session and task belong to this user
+        // before creating an action against them.
+        const [session, task] = await Promise.all([
+            Session.findOne({ _id: sessionId, user: req.userId }),
+            Task.findOne({ _id: taskId, user: req.userId })
+        ]);
+
+        if (!session || !task) {
+            return res.status(404).json({
+                error: "Session or task not found"
+            });
+        }
+
         const action = await Action.create({
-            sessionId: req.body.sessionId,
-            taskId: req.body.taskId,
-            status: "started"
+            sessionId,
+            taskId,
+            status: "started",
+            user: req.userId
         });
 
         res.status(201).json(action);
@@ -23,9 +41,12 @@ router.post("/", async (req, res) => {
 // UPDATE ACTION
 router.put("/:id", async (req, res) => {
     try {
-        const action = await Action.findByIdAndUpdate(
-            req.params.id,
-            req.body,
+        // Never let the client reassign ownership.
+        const { user, ...updates } = req.body;
+
+        const action = await Action.findOneAndUpdate(
+            { _id: req.params.id, user: req.userId },
+            updates,
             {
                 new: true,
                 runValidators: true
@@ -46,10 +67,10 @@ router.put("/:id", async (req, res) => {
     }
 });
 
-// GET ACTION HISTORY
+// GET ACTION HISTORY (this user only)
 router.get("/", async (req, res) => {
     try {
-        const actions = await Action.find()
+        const actions = await Action.find({ user: req.userId })
             .populate("sessionId")
             .populate("taskId")
             .sort({ createdAt: -1 });

@@ -8,15 +8,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const authRoutes = require("./routes/authRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 const sessionRoutes = require("./routes/sessionRoutes");
 const recommendationRoutes = require("./routes/recommendationRoutes");
 const actionRoutes = require("./routes/actionRoutes");
+const authMiddleware = require("./middleware/authMiddleware");
 
-app.use("/api/tasks", taskRoutes);
-app.use("/api/sessions", sessionRoutes);
-app.use("/api/recommendation", recommendationRoutes);
-app.use("/api/actions", actionRoutes);
+app.use("/api/auth", authRoutes);
+
+// Everything below requires a valid token; req.userId is set by the
+// middleware and used to scope all data to the authenticated user.
+app.use("/api/tasks", authMiddleware, taskRoutes);
+app.use("/api/sessions", authMiddleware, sessionRoutes);
+app.use("/api/recommendation", authMiddleware, recommendationRoutes);
+app.use("/api/actions", authMiddleware, actionRoutes);
 
 app.get("/", (req, res) => {
     res.json({

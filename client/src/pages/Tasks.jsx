@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import API_URL from "../services/api";
+import { apiFetch } from "../services/api";
 
 function Tasks() {
     const [tasks, setTasks] = useState([]);
@@ -14,7 +14,7 @@ function Tasks() {
 
     const fetchTasks = async () => {
         try {
-            const response = await fetch(`${API_URL}/tasks`);
+            const response = await apiFetch("/tasks");
             const data = await response.json();
             setTasks(data);
         } catch (error) {
@@ -51,22 +51,13 @@ function Tasks() {
             let response;
 
             if (editingId) {
-                response = await fetch(
-                    `${API_URL}/tasks/${editingId}`,
-                    {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify(taskData)
-                    }
-                );
+                response = await apiFetch(`/tasks/${editingId}`, {
+                    method: "PUT",
+                    body: JSON.stringify(taskData)
+                });
             } else {
-                response = await fetch(`${API_URL}/tasks`, {
+                response = await apiFetch("/tasks", {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
                     body: JSON.stringify(taskData)
                 });
             }
@@ -98,11 +89,8 @@ function Tasks() {
     };
 
     const completeTask = async (id) => {
-        await fetch(`${API_URL}/tasks/${id}`, {
+        await apiFetch(`/tasks/${id}`, {
             method: "PUT",
-            headers: {
-                "Content-Type": "application/json"
-            },
             body: JSON.stringify({
                 status: "completed"
             })
@@ -112,7 +100,7 @@ function Tasks() {
     };
 
     const deleteTask = async (id) => {
-        await fetch(`${API_URL}/tasks/${id}`, {
+        await apiFetch(`/tasks/${id}`, {
             method: "DELETE"
         });
 

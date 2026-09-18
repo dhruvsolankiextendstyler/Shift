@@ -6,7 +6,12 @@ const router = express.Router();
 // CREATE SESSION
 router.post("/", async (req, res) => {
     try {
-        const session = await Session.create(req.body);
+        const session = await Session.create({
+            mood: req.body.mood,
+            energy: req.body.energy,
+            availableTime: req.body.availableTime,
+            user: req.userId
+        });
 
         res.status(201).json(session);
     } catch (error) {
@@ -16,10 +21,11 @@ router.post("/", async (req, res) => {
     }
 });
 
-// GET ALL SESSIONS
+// GET THIS USER'S SESSIONS
 router.get("/", async (req, res) => {
     try {
-        const sessions = await Session.find().sort({ createdAt: -1 });
+        const sessions = await Session.find({ user: req.userId })
+            .sort({ createdAt: -1 });
 
         res.json(sessions);
     } catch (error) {

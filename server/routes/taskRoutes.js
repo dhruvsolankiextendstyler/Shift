@@ -6,17 +6,25 @@ const router = express.Router();
 // CREATE
 router.post("/", async (req, res) => {
     try {
-        const task = await Task.create(req.body);
+        const task = await Task.create({
+            title: req.body.title,
+            category: req.body.category,
+            estimatedTime: req.body.estimatedTime,
+            priority: req.body.priority,
+            user: req.userId
+        });
+
         res.status(201).json(task);
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 });
 
-// GET ACTIVE TASKS
+// GET TASKS (this user only)
 router.get("/", async (req, res) => {
     try {
         const tasks = await Task.find({
+            user: req.userId,
             status: { $ne: "deleted" }
         });
 
@@ -29,9 +37,12 @@ router.get("/", async (req, res) => {
 // UPDATE
 router.put("/:id", async (req, res) => {
     try {
-        const task = await Task.findByIdAndUpdate(
-            req.params.id,
-            req.body,
+        // Never let the client reassign ownership.
+        const { user, ...updates } = req.body;
+
+        const task = await Task.findOneAndUpdate(
+            { _id: req.params.id, user: req.userId },
+            updates,
             { new: true, runValidators: true }
         );
 
@@ -50,8 +61,8 @@ router.put("/:id", async (req, res) => {
 // SOFT DELETE
 router.delete("/:id", async (req, res) => {
     try {
-        const task = await Task.findByIdAndUpdate(
-            req.params.id,
+        const task = await Task.findOneAndUpdate(
+            { _id: req.params.id, user: req.userId },
             { status: "deleted" },
             { new: true }
         );

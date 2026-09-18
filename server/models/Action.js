@@ -2,6 +2,13 @@ const mongoose = require("mongoose");
 
 const actionSchema = new mongoose.Schema(
     {
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+            index: true
+        },
+
         sessionId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Session",
