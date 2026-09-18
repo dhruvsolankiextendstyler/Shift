@@ -3,49 +3,107 @@ import API_URL from "../services/api";
 
 function History() {
     const [actions, setActions] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(`${API_URL}/actions`)
-            .then((response) => response.json())
-            .then((data) => setActions(data))
-            .catch((error) => console.error(error));
+        const fetchHistory = async () => {
+            try {
+                const response = await fetch(`${API_URL}/actions`);
+                const data = await response.json();
+                setActions(data);
+            } catch (error) {
+                console.error("Failed to load history:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchHistory();
     }, []);
 
+    if (loading) {
+        return <p>Loading history...</p>;
+    }
+
     return (
-        <div>
-            <h2>History</h2>
+        <div className="history-page">
+            <div className="page-heading">
+                <div>
+                    <p className="eyebrow">YOUR JOURNEY</p>
+                    <h1>History</h1>
+                    <p className="page-description">
+                        A record of the moves you've made.
+                    </p>
+                </div>
+
+                <div className="task-count">
+                    {actions.length}
+                    <span> actions</span>
+                </div>
+            </div>
 
             {actions.length === 0 ? (
-                <p>No history yet.</p>
+                <div className="empty-state">
+                    <h2>No history yet.</h2>
+                    <p>Your completed and skipped actions will appear here.</p>
+                </div>
             ) : (
-                actions.map((action) => (
-                    <div key={action._id}>
-                        <h3>
-                            {action.taskId?.title || "Unknown Task"}
-                        </h3>
+                <div className="history-list">
+                    {actions.map((action) => (
+                        <div className="history-card" key={action._id}>
+                            <div className="history-main">
+                                <div className="history-top">
+                                    <h3>
+                                        {action.taskId?.title ||
+                                            "Unknown Task"}
+                                    </h3>
 
-                        <p>
-                            {action.taskId?.category} •{" "}
-                            {action.taskId?.estimatedTime} min
-                        </p>
+                                    <span
+                                        className={`status-badge ${action.status}`}
+                                    >
+                                        {action.status}
+                                    </span>
+                                </div>
 
-                        <p>
-                            State:{" "}
-                            {action.sessionId?.mood} •{" "}
-                            {action.sessionId?.energy} •{" "}
-                            {action.sessionId?.availableTime} min
-                        </p>
+                                <p className="history-meta">
+                                    {action.taskId?.category ||
+                                        "Unknown"}{" "}
+                                    •{" "}
+                                    {action.taskId?.estimatedTime || 0} min
+                                </p>
 
-                        <p>Status: {action.status}</p>
+                                <p className="history-state">
+                                    {action.sessionId?.mood}{" "}
+                                    •{" "}
+                                    {action.sessionId?.energy} energy{" "}
+                                    •{" "}
+                                    {action.sessionId?.availableTime} min
+                                    available
+                                </p>
+                            </div>
 
-                        <p>
-                            Feedback:{" "}
-                            {action.feedback || "No feedback"}
-                        </p>
+                            <div className="history-feedback">
+                                {action.feedback ? (
+                                    <>
+                                        <span className="feedback-label">
+                                            STATE SHIFT
+                                        </span>
 
-                        <hr />
-                    </div>
-                ))
+                                        <span
+                                            className={`feedback-value ${action.feedback}`}
+                                        >
+                                            {action.feedback}
+                                        </span>
+                                    </>
+                                ) : (
+                                    <span className="no-feedback">
+                                        No feedback
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
             )}
         </div>
     );

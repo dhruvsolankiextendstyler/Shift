@@ -15,11 +15,12 @@ function Now() {
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async () => {
-        setLoading(true);
         if (!mood || !energy || !time) {
             setMessage("Complete your check-in first.");
             return;
         }
+
+        setLoading(true);
 
         try {
             const sessionResponse = await fetch(
@@ -66,11 +67,11 @@ function Now() {
             }
 
             setRecommendation(recommendationData.task);
-            setLoading(false);
             setMessage("");
         } catch (error) {
             console.error(error);
             setMessage(error.message);
+        } finally {
             setLoading(false);
         }
     };
@@ -98,7 +99,7 @@ function Now() {
             }
 
             setActionId(data._id);
-            setMessage("Action started ⚡");
+            setMessage("");
         } catch (error) {
             console.error(error);
             setMessage(error.message);
@@ -107,8 +108,8 @@ function Now() {
 
     const completeAction = async () => {
         try {
-            await fetch(
-                `http://localhost:5000/api/actions/${actionId}`,
+            const actionResponse = await fetch(
+                `${API_URL}/actions/${actionId}`,
                 {
                     method: "PUT",
                     headers: {
@@ -121,8 +122,12 @@ function Now() {
                 }
             );
 
+            if (!actionResponse.ok) {
+                throw new Error("Failed to complete action.");
+            }
+
             await fetch(
-                `http://localhost:5000/api/tasks/${recommendation._id}`,
+                `${API_URL}/tasks/${recommendation._id}`,
                 {
                     method: "PUT",
                     headers: {
@@ -135,7 +140,7 @@ function Now() {
             );
 
             setShowFeedback(true);
-            setMessage("Completed. Did that shift your state?");
+            setMessage("");
         } catch (error) {
             console.error(error);
             setMessage("Failed to complete action.");
@@ -145,7 +150,7 @@ function Now() {
     const skipAction = async () => {
         try {
             const response = await fetch(
-                `http://localhost:5000/api/actions/${actionId}`,
+                `${API_URL}/actions/${actionId}`,
                 {
                     method: "PUT",
                     headers: {
@@ -158,7 +163,7 @@ function Now() {
             );
 
             if (!response.ok) {
-                throw new Error("Failed to skip action");
+                throw new Error("Failed to skip action.");
             }
 
             setMessage("Skipped.");
@@ -171,7 +176,7 @@ function Now() {
     const submitFeedback = async (feedback) => {
         try {
             const response = await fetch(
-                `http://localhost:5000/api/actions/${actionId}`,
+                `${API_URL}/actions/${actionId}`,
                 {
                     method: "PUT",
                     headers: {
@@ -206,125 +211,213 @@ function Now() {
     };
 
     return (
-        <div>
-            <h1>SHIFT ⚡</h1>
-            <p>Your state changes. Your next move shifts.</p>
+        <div className="now-page">
 
             {!recommendation && (
-                <>
-                    <h2>How are you feeling?</h2>
+                <section className="checkin-card">
 
-                    <div>
-                        {["low", "okay", "good", "great", "angry", "overwhelmed"].map(
-                            (item) => (
+                    <div className="hero">
+                        <p className="eyebrow">SHIFT</p>
+
+                        <h1>What should you do right now?</h1>
+
+                        <p className="subtitle">
+                            Tell us how you feel. We'll give you one
+                            next move.
+                        </p>
+                    </div>
+
+                    <div className="checkin-section">
+                        <h2>How are you feeling?</h2>
+
+                        <div className="option-grid">
+                            {[
+                                "low",
+                                "okay",
+                                "good",
+                                "great",
+                                "angry",
+                                "overwhelmed"
+                            ].map((item) => (
                                 <button
                                     key={item}
+                                    className={`option-button ${
+                                        mood === item
+                                            ? "selected"
+                                            : ""
+                                    }`}
                                     onClick={() => setMood(item)}
                                 >
                                     {item}
                                 </button>
-                            )
-                        )}
+                            ))}
+                        </div>
                     </div>
 
-                    <h2>Energy</h2>
+                    <div className="checkin-section">
+                        <h2>Energy</h2>
 
-                    <div>
-                        {["low", "medium", "high"].map((item) => (
-                            <button
-                                key={item}
-                                onClick={() => setEnergy(item)}
-                            >
-                                {item}
-                            </button>
-                        ))}
+                        <div className="option-grid three">
+                            {["low", "medium", "high"].map((item) => (
+                                <button
+                                    key={item}
+                                    className={`option-button ${
+                                        energy === item
+                                            ? "selected"
+                                            : ""
+                                    }`}
+                                    onClick={() => setEnergy(item)}
+                                >
+                                    {item}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
-                    <h2>Available time</h2>
+                    <div className="checkin-section">
+                        <h2>Available time</h2>
 
-                    <div>
-                        {[5, 15, 30, 60].map((item) => (
-                            <button
-                                key={item}
-                                onClick={() => setTime(item)}
-                            >
-                                {item === 60 ? "1 hour+" : `${item} min`}
-                            </button>
-                        ))}
+                        <div className="option-grid four">
+                            {[5, 15, 30, 60].map((item) => (
+                                <button
+                                    key={item}
+                                    className={`option-button ${
+                                        time === item
+                                            ? "selected"
+                                            : ""
+                                    }`}
+                                    onClick={() => setTime(item)}
+                                >
+                                    {item === 60
+                                        ? "1 hour+"
+                                        : `${item} min`}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
-                    <br />
+                    {message && (
+                        <p className="message">{message}</p>
+                    )}
 
-                    <button onClick={handleSubmit} disabled={loading}>
+                    <button
+                        className="shift-button"
+                        onClick={handleSubmit}
+                        disabled={loading}
+                    >
                         {loading ? "SHIFTING..." : "SHIFT →"}
                     </button>
-                </>
+
+                </section>
             )}
 
-            {message && <p>{message}</p>}
-
             {recommendation && !actionId && (
-                <div>
-                    <hr />
+                <section className="recommendation-card">
 
-                    <h2>Your Next Move</h2>
+                    <p className="eyebrow">YOUR NEXT MOVE</p>
 
-                    <h3>{recommendation.title}</h3>
+                    <h1>{recommendation.title}</h1>
 
-                    <p>
+                    <p className="task-meta">
                         {recommendation.category} •{" "}
-                        {recommendation.estimatedTime} min
+                        {recommendation.estimatedTime} min •{" "}
+                        {recommendation.priority} priority
                     </p>
 
-                    <button onClick={startAction}>
+                    <button
+                        className="shift-button"
+                        onClick={startAction}
+                    >
                         START ⚡
                     </button>
-                </div>
+
+                </section>
             )}
 
             {recommendation && actionId && !showFeedback && (
-                <div>
-                    <hr />
+                <section className="recommendation-card">
 
-                    <h2>Action in Progress</h2>
+                    <p className="eyebrow">ACTION IN PROGRESS</p>
 
-                    <h3>{recommendation.title}</h3>
+                    <h1>{recommendation.title}</h1>
 
-                    <button onClick={completeAction}>
-                        COMPLETE ✓
-                    </button>
+                    <div className="action-buttons">
+                        <button
+                            className="complete-button"
+                            onClick={completeAction}
+                        >
+                            COMPLETE ✓
+                        </button>
 
-                    <button onClick={skipAction}>
-                        SKIP
-                    </button>
-                </div>
+                        <button
+                            className="skip-button"
+                            onClick={skipAction}
+                        >
+                            SKIP
+                        </button>
+                    </div>
+
+                    {message && (
+                        <div>
+                            <p className="message">{message}</p>
+
+                            <button
+                                className="secondary-button"
+                                onClick={resetShift}
+                            >
+                                SHIFT AGAIN →
+                            </button>
+                        </div>
+                    )}
+
+                </section>
             )}
 
             {showFeedback && (
-                <div>
-                    <hr />
+                <section className="recommendation-card">
 
-                    <h2>Did that shift your state?</h2>
+                    <p className="eyebrow">ONE LAST THING</p>
 
-                    <button onClick={() => submitFeedback("better")}>
-                        Better
-                    </button>
+                    <h1>Did that shift your state?</h1>
 
-                    <button onClick={() => submitFeedback("same")}>
-                        Same
-                    </button>
+                    <div className="feedback-buttons">
+                        <button
+                            onClick={() =>
+                                submitFeedback("better")
+                            }
+                        >
+                            Better
+                        </button>
 
-                    <button onClick={() => submitFeedback("worse")}>
-                        Worse
-                    </button>
+                        <button
+                            onClick={() =>
+                                submitFeedback("same")
+                            }
+                        >
+                            Same
+                        </button>
 
-                    <br />
-                    <br />
+                        <button
+                            onClick={() =>
+                                submitFeedback("worse")
+                            }
+                        >
+                            Worse
+                        </button>
+                    </div>
 
-                    <button onClick={resetShift}>
+                    {message && (
+                        <p className="message">{message}</p>
+                    )}
+
+                    <button
+                        className="secondary-button"
+                        onClick={resetShift}
+                    >
                         SHIFT AGAIN →
                     </button>
-                </div>
+
+                </section>
             )}
         </div>
     );

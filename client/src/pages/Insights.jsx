@@ -26,7 +26,7 @@ function Insights() {
         return <p>Loading insights...</p>;
     }
 
-    const totalActions = actions.length;
+    const total = actions.length;
 
     const completed = actions.filter(
         (action) => action.status === "completed"
@@ -48,7 +48,11 @@ function Insights() {
         (action) => action.feedback === "worse"
     ).length;
 
-    // Count categories
+    const completionRate =
+        total > 0
+            ? Math.round((completed / total) * 100)
+            : 0;
+
     const categoryCounts = {};
 
     actions.forEach((action) => {
@@ -60,93 +64,111 @@ function Insights() {
         }
     });
 
-    const categoryEntries = Object.entries(categoryCounts);
-
-    categoryEntries.sort((a, b) => b[1] - a[1]);
+    const categories = Object.entries(categoryCounts).sort(
+        (a, b) => b[1] - a[1]
+    );
 
     const mostUsedCategory =
-        categoryEntries.length > 0
-            ? categoryEntries[0][0]
-            : "No data yet";
+        categories.length > 0
+            ? categories[0][0]
+            : "No data";
 
     return (
-        <div>
-            <h1>Insights</h1>
+        <div className="insights-page">
 
-            <p>
-                See what you've been doing and how your actions have
-                affected your state.
-            </p>
-
-            <hr />
-
-            <h2>Activity</h2>
-
-            <p>Total actions: {totalActions}</p>
-
-            <p>Completed: {completed}</p>
-
-            <p>Skipped: {skipped}</p>
-
-            <hr />
-
-            <h2>Feedback</h2>
-
-            <p>Better: {better}</p>
-
-            <p>Same: {same}</p>
-
-            <p>Worse: {worse}</p>
-
-            <hr />
-
-            <h2>Most Used Category</h2>
-
-            <p>{mostUsedCategory}</p>
-
-            <hr />
-
-            <h2>Category Breakdown</h2>
-
-            {categoryEntries.length === 0 ? (
-                <p>No category data yet.</p>
-            ) : (
-                categoryEntries.map(([category, count]) => (
-                    <p key={category}>
-                        {category}: {count}
+            <div className="page-heading">
+                <div>
+                    <p className="eyebrow">YOUR PATTERNS</p>
+                    <h1>Insights</h1>
+                    <p className="page-description">
+                        See how your actions have been shifting over time.
                     </p>
-                ))
-            )}
+                </div>
+            </div>
 
-            <hr />
-
-            <h2>Recent Activity</h2>
-
-            {actions.length === 0 ? (
-                <p>No activity yet.</p>
+            {total === 0 ? (
+                <div className="empty-state">
+                    <h2>No insights yet.</h2>
+                    <p>
+                        Use SHIFT a few times and your patterns will
+                        appear here.
+                    </p>
+                </div>
             ) : (
-                actions.slice(0, 10).map((action) => (
-                    <div key={action._id}>
-                        <h3>
-                            {action.taskId?.title || "Unknown Task"}
-                        </h3>
+                <>
+                    <div className="stats-grid">
 
-                        <p>
-                            {action.taskId?.category || "Unknown"}{" "}
-                            •{" "}
-                            {action.taskId?.estimatedTime || 0} min
-                        </p>
+                        <div className="stat-card">
+                            <span>Total actions</span>
+                            <strong>{total}</strong>
+                        </div>
 
-                        <p>
-                            {action.status}
-                            {action.feedback
-                                ? ` • ${action.feedback}`
-                                : ""}
-                        </p>
+                        <div className="stat-card">
+                            <span>Completed</span>
+                            <strong>{completed}</strong>
+                        </div>
 
-                        <hr />
+                        <div className="stat-card">
+                            <span>Skipped</span>
+                            <strong>{skipped}</strong>
+                        </div>
+
+                        <div className="stat-card">
+                            <span>Completion rate</span>
+                            <strong>{completionRate}%</strong>
+                        </div>
+
                     </div>
-                ))
+
+                    <div className="insights-grid">
+
+                        <section className="insight-card">
+                            <p className="eyebrow">STATE SHIFT</p>
+
+                            <h2>How actions affected you</h2>
+
+                            <div className="feedback-stat">
+                                <span>Better</span>
+                                <strong>{better}</strong>
+                            </div>
+
+                            <div className="feedback-stat">
+                                <span>Same</span>
+                                <strong>{same}</strong>
+                            </div>
+
+                            <div className="feedback-stat">
+                                <span>Worse</span>
+                                <strong>{worse}</strong>
+                            </div>
+                        </section>
+
+                        <section className="insight-card">
+                            <p className="eyebrow">CATEGORY</p>
+
+                            <h2>Most used</h2>
+
+                            <div className="big-insight">
+                                {mostUsedCategory}
+                            </div>
+
+                            <div className="category-list">
+                                {categories.map(
+                                    ([category, count]) => (
+                                        <div
+                                            className="category-row"
+                                            key={category}
+                                        >
+                                            <span>{category}</span>
+                                            <strong>{count}</strong>
+                                        </div>
+                                    )
+                                )}
+                            </div>
+                        </section>
+
+                    </div>
+                </>
             )}
         </div>
     );

@@ -13,9 +13,13 @@ function Tasks() {
     const [editingId, setEditingId] = useState(null);
 
     const fetchTasks = async () => {
-        const response = await fetch(`${API_URL}/tasks`);
-        const data = await response.json();
-        setTasks(data);
+        try {
+            const response = await fetch(`${API_URL}/tasks`);
+            const data = await response.json();
+            setTasks(data);
+        } catch (error) {
+            console.error("Fetch tasks error:", error);
+        }
     };
 
     useEffect(() => {
@@ -43,29 +47,41 @@ function Tasks() {
             priority
         };
 
-        if (editingId) {
-            await fetch(
-                `http://localhost:5000/api/tasks/${editingId}`,
-                {
-                    method: "PUT",
+        try {
+            let response;
+
+            if (editingId) {
+                response = await fetch(
+                    `${API_URL}/tasks/${editingId}`,
+                    {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(taskData)
+                    }
+                );
+            } else {
+                response = await fetch(`${API_URL}/tasks`, {
+                    method: "POST",
                     headers: {
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify(taskData)
-                }
-            );
-        } else {
-            await fetch(`${API_URL}/tasks`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(taskData)
-            });
-        }
+                });
+            }
 
-        resetForm();
-        fetchTasks();
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Failed to save task");
+            }
+
+            resetForm();
+            fetchTasks();
+        } catch (error) {
+            console.error(error);
+            alert(error.message);
+        }
     };
 
     const editTask = (task) => {
@@ -74,10 +90,15 @@ function Tasks() {
         setCategory(task.category);
         setEstimatedTime(task.estimatedTime);
         setPriority(task.priority);
+
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
     };
 
     const completeTask = async (id) => {
-        await fetch(`http://localhost:5000/api/tasks/${id}`, {
+        await fetch(`${API_URL}/tasks/${id}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json"
@@ -91,7 +112,7 @@ function Tasks() {
     };
 
     const deleteTask = async (id) => {
-        await fetch(`http://localhost:5000/api/tasks/${id}`, {
+        await fetch(`${API_URL}/tasks/${id}`, {
             method: "DELETE"
         });
 
@@ -111,108 +132,257 @@ function Tasks() {
     });
 
     return (
-        <div>
-            <h2>{editingId ? "Edit Task" : "Add Task"}</h2>
+        <div className="tasks-page">
 
-            <input
-                placeholder="Task title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-            />
+            <div className="page-heading">
+                <div>
+                    <p className="eyebrow">YOUR ACTION POOL</p>
+                    <h1>Tasks</h1>
+                    <p className="page-description">
+                        Add the things you might want SHIFT to recommend.
+                    </p>
+                </div>
 
-            <input
-                placeholder="Category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-            />
+                <div className="task-count">
+                    {tasks.filter(
+                        (task) => task.status === "active"
+                    ).length}
+                    <span> active</span>
+                </div>
+            </div>
 
-            <input
-                type="number"
-                placeholder="Time (minutes)"
-                value={estimatedTime}
-                onChange={(e) => setEstimatedTime(e.target.value)}
-            />
+            {/* ADD / EDIT TASK */}
 
-            <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-            >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-            </select>
+            <section className="task-form-card">
 
-            <button onClick={saveTask}>
-                {editingId ? "Update Task" : "Add Task"}
-            </button>
+                <div className="form-heading">
+                    <h2>
+                        {editingId
+                            ? "Edit task"
+                            : "Add a new task"}
+                    </h2>
 
-            {editingId && (
-                <button onClick={resetForm}>
-                    Cancel
-                </button>
-            )}
+                    {editingId && (
+                        <button
+                            className="text-button"
+                            onClick={resetForm}
+                        >
+                            Cancel
+                        </button>
+                    )}
+                </div>
 
-            <hr />
+                <div className="task-form">
 
-            <h2>Your Tasks</h2>
+                    <div className="input-group">
+                        <label>Task</label>
 
-            <button onClick={() => setFilter("active")}>
-                Active
-            </button>
+                        <input
+                            placeholder="e.g. Practice React"
+                            value={title}
+                            onChange={(e) =>
+                                setTitle(e.target.value)
+                            }
+                        />
+                    </div>
 
-            <button onClick={() => setFilter("completed")}>
-                Completed
-            </button>
+                    <div className="form-row">
 
-            <button onClick={() => setFilter("all")}>
-                All
-            </button>
+                        <div className="input-group">
+                            <label>Category</label>
 
-            <hr />
+                            <input
+                                placeholder="e.g. CS"
+                                value={category}
+                                onChange={(e) =>
+                                    setCategory(e.target.value)
+                                }
+                            />
+                        </div>
 
-            {filteredTasks.length === 0 ? (
-                <p>No tasks here.</p>
-            ) : (
-                filteredTasks.map((task) => (
-                    <div key={task._id}>
-                        <h3>{task.title}</h3>
+                        <div className="input-group">
+                            <label>Time</label>
 
+                            <input
+                                type="number"
+                                min="1"
+                                placeholder="Minutes"
+                                value={estimatedTime}
+                                onChange={(e) =>
+                                    setEstimatedTime(e.target.value)
+                                }
+                            />
+                        </div>
+
+                        <div className="input-group">
+                            <label>Priority</label>
+
+                            <select
+                                value={priority}
+                                onChange={(e) =>
+                                    setPriority(e.target.value)
+                                }
+                            >
+                                <option value="low">Low</option>
+                                <option value="medium">
+                                    Medium
+                                </option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+
+                    </div>
+
+                    <button
+                        className="primary-button"
+                        onClick={saveTask}
+                    >
+                        {editingId
+                            ? "Update task"
+                            : "Add task"}
+                    </button>
+
+                </div>
+            </section>
+
+            {/* FILTERS */}
+
+            <div className="task-toolbar">
+
+                <div>
+                    <button
+                        className={
+                            filter === "active"
+                                ? "filter-button active"
+                                : "filter-button"
+                        }
+                        onClick={() => setFilter("active")}
+                    >
+                        Active
+                    </button>
+
+                    <button
+                        className={
+                            filter === "completed"
+                                ? "filter-button active"
+                                : "filter-button"
+                        }
+                        onClick={() => setFilter("completed")}
+                    >
+                        Completed
+                    </button>
+
+                    <button
+                        className={
+                            filter === "all"
+                                ? "filter-button active"
+                                : "filter-button"
+                        }
+                        onClick={() => setFilter("all")}
+                    >
+                        All
+                    </button>
+                </div>
+
+                <span className="result-count">
+                    {filteredTasks.length} tasks
+                </span>
+
+            </div>
+
+            {/* TASK LIST */}
+
+            <div className="task-list">
+
+                {filteredTasks.length === 0 ? (
+                    <div className="empty-state">
+                        <h2>No tasks here.</h2>
                         <p>
-                            {task.category} •{" "}
-                            {task.estimatedTime} min •{" "}
-                            {task.priority}
+                            Add something to your action pool
+                            above.
                         </p>
+                    </div>
+                ) : (
+                    filteredTasks.map((task) => (
+                        <div
+                            className="task-card"
+                            key={task._id}
+                        >
 
-                        <p>Status: {task.status}</p>
+                            <div className="task-info">
 
-                        {task.status === "active" && (
-                            <>
+                                <div className="task-title-row">
+                                    <h3>{task.title}</h3>
+
+                                    <span
+                                        className={`priority-badge ${task.priority}`}
+                                    >
+                                        {task.priority}
+                                    </span>
+                                </div>
+
+                                <div className="task-meta">
+                                    <span>
+                                        {task.category}
+                                    </span>
+
+                                    <span>•</span>
+
+                                    <span>
+                                        {task.estimatedTime} min
+                                    </span>
+
+                                    <span>•</span>
+
+                                    <span>
+                                        {task.status}
+                                    </span>
+                                </div>
+
+                            </div>
+
+                            <div className="task-actions">
+
+                                {task.status === "active" && (
+                                    <>
+                                        <button
+                                            className="small-button"
+                                            onClick={() =>
+                                                editTask(task)
+                                            }
+                                        >
+                                            Edit
+                                        </button>
+
+                                        <button
+                                            className="small-button complete"
+                                            onClick={() =>
+                                                completeTask(
+                                                    task._id
+                                                )
+                                            }
+                                        >
+                                            Complete
+                                        </button>
+                                    </>
+                                )}
+
                                 <button
-                                    onClick={() => editTask(task)}
-                                >
-                                    Edit
-                                </button>
-
-                                <button
+                                    className="small-button delete"
                                     onClick={() =>
-                                        completeTask(task._id)
+                                        deleteTask(task._id)
                                     }
                                 >
-                                    Complete
+                                    Delete
                                 </button>
-                            </>
-                        )}
 
-                        <button
-                            onClick={() => deleteTask(task._id)}
-                        >
-                            Delete
-                        </button>
+                            </div>
 
-                        <hr />
-                    </div>
-                ))
-            )}
+                        </div>
+                    ))
+                )}
+
+            </div>
         </div>
     );
 }
