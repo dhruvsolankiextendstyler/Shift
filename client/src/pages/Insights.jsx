@@ -301,21 +301,22 @@ const TIME_BUCKETS = [
 ];
 const MOOD_ORDER = ["low", "okay", "good", "great", "angry", "overwhelmed"];
 
-/* ------------------------------ page ------------------------------ */
+/* ------------------------------ data hook ------------------------------ */
 
-const TABS = [
+export const INSIGHTS_TABS = [
     { id: "overview", label: "Overview" },
     { id: "rhythm", label: "Rhythm" },
     { id: "streaks", label: "Streaks" },
     { id: "trends", label: "Trends" }
 ];
 
-function Insights() {
+// Fetches actions + tasks once and returns the derived analytics.
+// Shared by the desktop page and the mobile swipe pager.
+export function useInsightsData() {
     const [actions, setActions] = useState([]);
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
-    const [tab, setTab] = useState("overview");
 
     const load = async () => {
         setLoading(true);
@@ -342,7 +343,7 @@ function Insights() {
         load();
     }, []);
 
-    const derived = useMemo(() => {
+    const d = useMemo(() => {
         const total = actions.length;
         const completed = actions.filter((a) => a.status === "completed").length;
         const skipped = actions.filter((a) => a.status === "skipped").length;
@@ -493,17 +494,14 @@ function Insights() {
         };
     }, [actions, tasks]);
 
-    if (loading) {
-        return <p className="message">Crunching your patterns...</p>;
-    }
-
-    if (error) {
-        return <ErrorState onRetry={load} />;
-    }
-
-    const d = derived;
     const isEmpty = d.total === 0 && d.permanentLogged === 0;
 
+    return { loading, error, reload: load, d, isEmpty };
+}
+
+/* ---------- per-tab content (pure — no fetch, no tab bar) ---------- */
+
+export function InsightsTabContent({ d, tab }) {
     const outcomeSegments = [
         { label: "Completed", value: d.completed, color: "var(--viz-good)" },
         { label: "Skipped", value: d.skipped, color: "var(--viz-muted)" },
@@ -515,6 +513,251 @@ function Insights() {
         { label: "Worse", value: d.worse, color: "var(--viz-worse)" }
     ];
     const hasFeedback = d.better + d.same + d.worse > 0;
+
+    if (tab === "overview") {
+        return (
+            <>
+                <div className="stats-grid">
+                    <div className="stat-card">
+                        <span>Total actions</span>
+                        <strong>{d.total}</strong>
+                    </div>
+                    <div className="stat-card">
+                        <span>Completion rate</span>
+                        <strong>{d.completionRate}%</strong>
+                    </div>
+                    <div className="stat-card">
+                        <span>Permanent logged</span>
+                        <strong>{d.permanentLogged}</strong>
+                    </div>
+                    <div className="stat-card">
+                        <span>Untouched tasks</span>
+                        <strong>{d.untouched}</strong>
+                    </div>
+                </div>
+
+                <div className="insights-grid">
+                    <section className="insight-card">
+                        <p className="eyebrow">OUTCOMES</p>
+                        <h2>How your moves land</h2>
+                        <div className="chart-with-legend">
+                            <Donut
+                                segments={outcomeSegments}
+                                centerValue={`${d.completionRate}%`}
+                                centerLabel="completed"
+                            />
+                            <Legend segments={outcomeSegments} />
+                        </div>
+                    </section>
+
+                    <section className="insight-card">
+                        <p className="eyebrow">STATE SHIFT</p>
+                        <h2>Did they move the needle?</h2>
+                        {hasFeedback ? (
+                            <div className="chart-with-legend">
+                                <Donut
+                                    segments={feedbackSegments}
+                                    centerValue={d.better}
+                                    centerLabel="felt better"
+                                />
+                                <Legend segments={feedbackSegments} />
+                            </div>
+                        ) : (
+                            <p className="chart-empty">
+                                No feedback logged yet — finish a move
+                                and tell us how it felt.
+                            </p>
+                        )}
+                    </section>
+                </div>
+
+                {d.categories.length > 0 && (
+                    <section className="insight-card wide">
+                        <p className="eyebrow">CATEGORY</p>
+                        <h2>Where you spend it</h2>
+                        <BarList items={d.categories} />
+                    </section>
+                )}
+
+                <section className="insight-card wide">
+                    <p className="eyebrow">MOMENTUM</p>
+                    <h2>Your activity calendar</h2>
+                    <p className="chart-sub">
+                        Every day you made a move over the last few
+                        months.
+                    </p>
+                    <Heatmap counts={d.dayCounts} />
+                </section>
+
+                {d.permanentTasks.length > 0 && (
+                    <section className="insight-card wide">
+                        <p className="eyebrow">∞ PERMANENT</p>
+                        <h2>Your recurring streaks</h2>
+                        <p className="chart-sub">
+                            Habits that stay in the pool — ranked by how
+                            often you've logged them.
+                        </p>
+                        <BarList items={d.permanentTasks} unit="×" />
+                    </section>
+                )}
+            </>
+        );
+    }
+
+    if (tab === "rhythm") {
+        return (
+            <>
+                <div className="insights-grid">
+                    <section className="insight-card">
+                        <p className="eyebrow">BY WEEKDAY</p>
+                        <h2>When you show up</h2>
+                        <p className="chart-sub">
+                            Completed moves, grouped by day of the week.
+                        </p>
+                        <BarList items={d.weekdayItems} />
+                    </section>
+
+                    <section className="insight-card">
+                        <p className="eyebrow">TIME OF DAY</p>
+                        <h2>Your peak window</h2>
+                        <p className="chart-sub">
+                            When your completed moves actually happen.
+                        </p>
+                        <BarList items={d.timeItems} />
+                    </section>
+                </div>
+
+                <section className="insight-card wide">
+                    <p className="eyebrow">MOOD → OUTCOME</p>
+                    <h2>Does your headspace decide it?</h2>
+                    <p className="chart-sub">
+                        Completion rate by the mood you checked in with.
+                    </p>
+                    {d.moodItems.length > 0 ? (
+                        <BarList
+                            items={d.moodItems}
+                            unit="%"
+                            scaleMax={100}
+                        />
+                    ) : (
+                        <p className="chart-empty">
+                            Not enough check-ins yet.
+                        </p>
+                    )}
+                </section>
+            </>
+        );
+    }
+
+    if (tab === "streaks") {
+        return (
+            <>
+                <div className="stats-grid two">
+                    <div className="stat-card">
+                        <span>Current streak</span>
+                        <strong>
+                            {d.overallStreak.current}
+                            <span className="unit">
+                                {" "}
+                                day
+                                {d.overallStreak.current === 1 ? "" : "s"}
+                            </span>
+                        </strong>
+                    </div>
+                    <div className="stat-card">
+                        <span>Longest streak</span>
+                        <strong>
+                            {d.overallStreak.longest}
+                            <span className="unit">
+                                {" "}
+                                day
+                                {d.overallStreak.longest === 1 ? "" : "s"}
+                            </span>
+                        </strong>
+                    </div>
+                </div>
+
+                <section className="insight-card wide">
+                    <p className="eyebrow">🔥 BY CATEGORY</p>
+                    <h2>Keep the chain alive</h2>
+                    <p className="chart-sub">
+                        Consecutive days you completed a move in each
+                        category.
+                    </p>
+                    {d.categoryStreaks.length > 0 ? (
+                        <div className="streak-list">
+                            {d.categoryStreaks.map((s) => (
+                                <div className="streak-row" key={s.label}>
+                                    <span className="streak-cat">
+                                        {s.label}
+                                    </span>
+                                    <span className="streak-current">
+                                        🔥 {s.current} day
+                                        {s.current === 1 ? "" : "s"}
+                                    </span>
+                                    <span className="streak-best">
+                                        best {s.longest}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="chart-empty">
+                            Complete a move to start a streak.
+                        </p>
+                    )}
+                </section>
+            </>
+        );
+    }
+
+    // trends
+    return (
+        <section className="insight-card wide">
+            <p className="eyebrow">COMPLETION TREND</p>
+            <h2>Are you getting sharper?</h2>
+            <p className="chart-sub">
+                Weekly completion rate over your last 8 active weeks.
+            </p>
+            {d.trendPoints.length > 1 ? (
+                <LineChart points={d.trendPoints} />
+            ) : (
+                <p className="chart-empty">
+                    Need at least two active weeks to plot a trend. Keep
+                    moving.
+                </p>
+            )}
+        </section>
+    );
+}
+
+/* ---------- empty state (shared by desktop + mobile) ---------- */
+
+export function InsightsEmpty() {
+    return (
+        <div className="empty-state">
+            <h2>Nothing to show yet.</h2>
+            <p>
+                Make a few moves and your patterns start to surface
+                here.
+            </p>
+        </div>
+    );
+}
+
+/* ------------------------------ desktop page ------------------------------ */
+
+function Insights() {
+    const { loading, error, reload, d, isEmpty } = useInsightsData();
+    const [tab, setTab] = useState("overview");
+
+    if (loading) {
+        return <p className="message">Crunching your patterns...</p>;
+    }
+
+    if (error) {
+        return <ErrorState onRetry={reload} />;
+    }
 
     return (
         <div className="insights-page">
@@ -529,17 +772,11 @@ function Insights() {
             </div>
 
             {isEmpty ? (
-                <div className="empty-state">
-                    <h2>Nothing to show yet.</h2>
-                    <p>
-                        Make a few moves and your patterns start to
-                        surface here.
-                    </p>
-                </div>
+                <InsightsEmpty />
             ) : (
                 <>
                     <div className="insights-tabs" role="tablist">
-                        {TABS.map((t) => (
+                        {INSIGHTS_TABS.map((t) => (
                             <button
                                 key={t.id}
                                 role="tab"
@@ -552,237 +789,7 @@ function Insights() {
                         ))}
                     </div>
 
-                    {tab === "overview" && (
-                        <>
-                            <div className="stats-grid">
-                                <div className="stat-card">
-                                    <span>Total actions</span>
-                                    <strong>{d.total}</strong>
-                                </div>
-                                <div className="stat-card">
-                                    <span>Completion rate</span>
-                                    <strong>{d.completionRate}%</strong>
-                                </div>
-                                <div className="stat-card">
-                                    <span>Permanent logged</span>
-                                    <strong>{d.permanentLogged}</strong>
-                                </div>
-                                <div className="stat-card">
-                                    <span>Untouched tasks</span>
-                                    <strong>{d.untouched}</strong>
-                                </div>
-                            </div>
-
-                            <div className="insights-grid">
-                                <section className="insight-card">
-                                    <p className="eyebrow">OUTCOMES</p>
-                                    <h2>How your moves land</h2>
-                                    <div className="chart-with-legend">
-                                        <Donut
-                                            segments={outcomeSegments}
-                                            centerValue={`${d.completionRate}%`}
-                                            centerLabel="completed"
-                                        />
-                                        <Legend
-                                            segments={outcomeSegments}
-                                        />
-                                    </div>
-                                </section>
-
-                                <section className="insight-card">
-                                    <p className="eyebrow">STATE SHIFT</p>
-                                    <h2>Did they move the needle?</h2>
-                                    {hasFeedback ? (
-                                        <div className="chart-with-legend">
-                                            <Donut
-                                                segments={feedbackSegments}
-                                                centerValue={d.better}
-                                                centerLabel="felt better"
-                                            />
-                                            <Legend
-                                                segments={feedbackSegments}
-                                            />
-                                        </div>
-                                    ) : (
-                                        <p className="chart-empty">
-                                            No feedback logged yet —
-                                            finish a move and tell us
-                                            how it felt.
-                                        </p>
-                                    )}
-                                </section>
-                            </div>
-
-                            {d.categories.length > 0 && (
-                                <section className="insight-card wide">
-                                    <p className="eyebrow">CATEGORY</p>
-                                    <h2>Where you spend it</h2>
-                                    <BarList items={d.categories} />
-                                </section>
-                            )}
-
-                            <section className="insight-card wide">
-                                <p className="eyebrow">MOMENTUM</p>
-                                <h2>Your activity calendar</h2>
-                                <p className="chart-sub">
-                                    Every day you made a move over the
-                                    last few months.
-                                </p>
-                                <Heatmap counts={d.dayCounts} />
-                            </section>
-
-                            {d.permanentTasks.length > 0 && (
-                                <section className="insight-card wide">
-                                    <p className="eyebrow">∞ PERMANENT</p>
-                                    <h2>Your recurring streaks</h2>
-                                    <p className="chart-sub">
-                                        Habits that stay in the pool —
-                                        ranked by how often you've
-                                        logged them.
-                                    </p>
-                                    <BarList
-                                        items={d.permanentTasks}
-                                        unit="×"
-                                    />
-                                </section>
-                            )}
-                        </>
-                    )}
-
-                    {tab === "rhythm" && (
-                        <>
-                            <div className="insights-grid">
-                                <section className="insight-card">
-                                    <p className="eyebrow">BY WEEKDAY</p>
-                                    <h2>When you show up</h2>
-                                    <p className="chart-sub">
-                                        Completed moves, grouped by day
-                                        of the week.
-                                    </p>
-                                    <BarList items={d.weekdayItems} />
-                                </section>
-
-                                <section className="insight-card">
-                                    <p className="eyebrow">TIME OF DAY</p>
-                                    <h2>Your peak window</h2>
-                                    <p className="chart-sub">
-                                        When your completed moves
-                                        actually happen.
-                                    </p>
-                                    <BarList items={d.timeItems} />
-                                </section>
-                            </div>
-
-                            <section className="insight-card wide">
-                                <p className="eyebrow">MOOD → OUTCOME</p>
-                                <h2>Does your headspace decide it?</h2>
-                                <p className="chart-sub">
-                                    Completion rate by the mood you
-                                    checked in with.
-                                </p>
-                                {d.moodItems.length > 0 ? (
-                                    <BarList
-                                        items={d.moodItems}
-                                        unit="%"
-                                        scaleMax={100}
-                                    />
-                                ) : (
-                                    <p className="chart-empty">
-                                        Not enough check-ins yet.
-                                    </p>
-                                )}
-                            </section>
-                        </>
-                    )}
-
-                    {tab === "streaks" && (
-                        <>
-                            <div className="stats-grid two">
-                                <div className="stat-card">
-                                    <span>Current streak</span>
-                                    <strong>
-                                        {d.overallStreak.current}
-                                        <span className="unit">
-                                            {" "}
-                                            day
-                                            {d.overallStreak.current === 1
-                                                ? ""
-                                                : "s"}
-                                        </span>
-                                    </strong>
-                                </div>
-                                <div className="stat-card">
-                                    <span>Longest streak</span>
-                                    <strong>
-                                        {d.overallStreak.longest}
-                                        <span className="unit">
-                                            {" "}
-                                            day
-                                            {d.overallStreak.longest === 1
-                                                ? ""
-                                                : "s"}
-                                        </span>
-                                    </strong>
-                                </div>
-                            </div>
-
-                            <section className="insight-card wide">
-                                <p className="eyebrow">🔥 BY CATEGORY</p>
-                                <h2>Keep the chain alive</h2>
-                                <p className="chart-sub">
-                                    Consecutive days you completed a
-                                    move in each category.
-                                </p>
-                                {d.categoryStreaks.length > 0 ? (
-                                    <div className="streak-list">
-                                        {d.categoryStreaks.map((s) => (
-                                            <div
-                                                className="streak-row"
-                                                key={s.label}
-                                            >
-                                                <span className="streak-cat">
-                                                    {s.label}
-                                                </span>
-                                                <span className="streak-current">
-                                                    🔥 {s.current} day
-                                                    {s.current === 1
-                                                        ? ""
-                                                        : "s"}
-                                                </span>
-                                                <span className="streak-best">
-                                                    best {s.longest}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="chart-empty">
-                                        Complete a move to start a
-                                        streak.
-                                    </p>
-                                )}
-                            </section>
-                        </>
-                    )}
-
-                    {tab === "trends" && (
-                        <section className="insight-card wide">
-                            <p className="eyebrow">COMPLETION TREND</p>
-                            <h2>Are you getting sharper?</h2>
-                            <p className="chart-sub">
-                                Weekly completion rate over your last
-                                8 active weeks.
-                            </p>
-                            {d.trendPoints.length > 1 ? (
-                                <LineChart points={d.trendPoints} />
-                            ) : (
-                                <p className="chart-empty">
-                                    Need at least two active weeks to
-                                    plot a trend. Keep moving.
-                                </p>
-                            )}
-                        </section>
-                    )}
+                    <InsightsTabContent d={d} tab={tab} />
                 </>
             )}
         </div>
