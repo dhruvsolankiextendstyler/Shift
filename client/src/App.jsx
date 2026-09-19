@@ -13,7 +13,7 @@ function AppShell() {
     if (loading) {
         return (
             <div className="app">
-                <p className="app-loading">Loading SHIFT...</p>
+                <p className="app-loading">Powering up SHIFT ⚡</p>
             </div>
         );
     }

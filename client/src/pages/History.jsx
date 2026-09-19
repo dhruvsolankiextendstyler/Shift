@@ -22,17 +22,17 @@ function History() {
     }, []);
 
     if (loading) {
-        return <p>Loading history...</p>;
+        return <p className="message">Pulling up your moves...</p>;
     }
 
     return (
         <div className="history-page">
             <div className="page-heading">
                 <div>
-                    <p className="eyebrow">YOUR JOURNEY</p>
+                    <p className="eyebrow">↺ THE TRAIL YOU'VE LEFT</p>
                     <h1>History</h1>
                     <p className="page-description">
-                        A record of the moves you've made.
+                        Every move you've made, start to finish.
                     </p>
                 </div>
 
@@ -44,8 +44,8 @@ function History() {
 
             {actions.length === 0 ? (
                 <div className="empty-state">
-                    <h2>No history yet.</h2>
-                    <p>Your completed and skipped actions will appear here.</p>
+                    <h2>Nothing here yet.</h2>
+                    <p>Make your first move and it'll show up right here.</p>
                 </div>
             ) : (
                 <div className="history-list">

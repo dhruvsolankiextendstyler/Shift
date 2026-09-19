@@ -50,7 +50,15 @@
 
     /* Layout */
     --page-width: min(900px, 92%);
+
+    /* Motion */
     --transition: 0.2s;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --dur-fast: 0.16s;
+    --dur: 0.28s;
+    --dur-slow: 0.5s;
 }
 
 /* ============================================================
@@ -85,6 +93,98 @@ a {
 
 .app {
     min-height: 100vh;
+}
+
+/* ============================================================
+   Motion — keyframes + shared entrances
+   ============================================================ */
+
+@keyframes fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes pop-in {
+    0% {
+        opacity: 0;
+        transform: scale(0.94);
+    }
+    60% {
+        transform: scale(1.02);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes pulse-soft {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.55;
+    }
+}
+
+@keyframes glow-breathe {
+    0%,
+    100% {
+        box-shadow: 0 8px 24px -10px rgba(245, 245, 245, 0.25);
+    }
+    50% {
+        box-shadow: 0 10px 34px -8px rgba(245, 245, 245, 0.5);
+    }
+}
+
+@keyframes ring-expand {
+    from {
+        box-shadow: 0 0 0 0 rgba(245, 245, 245, 0.25);
+    }
+    to {
+        box-shadow: 0 0 0 4px rgba(245, 245, 245, 0);
+    }
+}
+
+@keyframes float-soft {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-4px);
+    }
+}
+
+/* Route content eases in on mount */
+.main-content > * {
+    animation: fade-up var(--dur-slow) var(--ease-out) both;
+}
+
+/* Consistent, accessible focus ring for all interactive elements */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: var(--radius-sm);
 }
 
 /* ============================================================
@@ -132,7 +232,7 @@ a {
     color: #ffffff;
 }
 
-.navbar nav a.active::after {
+.navbar nav a::after {
     content: "";
     position: absolute;
     left: 0;
@@ -141,6 +241,23 @@ a {
     height: 2px;
     background: var(--accent);
     border-radius: 2px;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--dur) var(--ease-out);
+}
+
+.navbar nav a:hover::after,
+.navbar nav a.active::after {
+    transform: scaleX(1);
+}
+
+.logo span {
+    display: inline-block;
+    transition: transform var(--dur) var(--ease-spring);
+}
+
+.logo:hover span {
+    transform: rotate(-12deg) scale(1.2);
 }
 
 .nav-user {
@@ -235,6 +352,7 @@ a {
 .message {
     color: var(--text-muted);
     margin: var(--space-3) 0;
+    animation: fade-up var(--dur) var(--ease-out) both;
 }
 
 /* ============================================================
@@ -243,6 +361,8 @@ a {
 
 .shift-button,
 .primary-button {
+    position: relative;
+    overflow: hidden;
     width: 100%;
     border: none;
     border-radius: var(--radius);
@@ -251,19 +371,59 @@ a {
     color: var(--on-accent);
     font-weight: 700;
     letter-spacing: 1px;
-    transition: transform var(--transition), background var(--transition);
+    transition: transform var(--dur) var(--ease-spring),
+        background var(--dur) var(--ease-out),
+        box-shadow var(--dur) var(--ease-out);
+}
+
+/* Light sweep that glides across on hover */
+.shift-button::after,
+.primary-button::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -75%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+        120deg,
+        transparent,
+        rgba(255, 255, 255, 0.45),
+        transparent
+    );
+    transform: skewX(-20deg);
+    transition: left var(--dur-slow) var(--ease-out);
+    pointer-events: none;
 }
 
 .shift-button:hover:not(:disabled),
 .primary-button:hover:not(:disabled) {
     background: var(--accent-hover);
-    transform: translateY(-2px);
+    transform: translateY(-3px) scale(1.015);
+    box-shadow: 0 14px 30px -8px rgba(0, 0, 0, 0.6),
+        0 0 22px -6px rgba(245, 245, 245, 0.4);
+    letter-spacing: 1.5px;
+}
+
+.shift-button:hover:not(:disabled)::after,
+.primary-button:hover:not(:disabled)::after {
+    left: 125%;
+}
+
+.shift-button:active:not(:disabled),
+.primary-button:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    transition-duration: var(--dur-fast);
 }
 
 .shift-button:disabled,
 .primary-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.shift-button:disabled {
+    animation: pulse-soft 1.4s var(--ease-in-out) infinite;
 }
 
 .secondary-button,
@@ -275,7 +435,9 @@ a {
     padding: 14px 22px;
     background: var(--surface-raised);
     color: var(--text);
-    transition: border-color var(--transition), transform var(--transition);
+    transition: border-color var(--dur) var(--ease-out),
+        transform var(--dur) var(--ease-spring),
+        background var(--dur) var(--ease-out);
 }
 
 .secondary-button:hover,
@@ -283,13 +445,28 @@ a {
 .skip-button:hover,
 .feedback-buttons button:hover {
     border-color: var(--border-hover);
+    background: var(--border);
     transform: translateY(-2px);
+    box-shadow: 0 10px 22px -14px rgba(245, 245, 245, 0.3);
+}
+
+.secondary-button:active,
+.complete-button:active,
+.skip-button:active,
+.feedback-buttons button:active {
+    transform: translateY(0) scale(0.97);
+    transition-duration: var(--dur-fast);
 }
 
 .text-button {
     background: none;
     border: none;
     color: var(--text-muted);
+    transition: color var(--dur) var(--ease-out);
+}
+
+.text-button:hover {
+    color: var(--text);
 }
 
 .small-button {
@@ -299,12 +476,22 @@ a {
     padding: 8px 11px;
     border-radius: 7px;
     font-size: var(--text-xs);
-    transition: border-color var(--transition), color var(--transition);
+    transition: border-color var(--dur) var(--ease-out),
+        color var(--dur) var(--ease-out),
+        transform var(--dur) var(--ease-spring),
+        background var(--dur) var(--ease-out);
 }
 
 .small-button:hover {
     border-color: var(--border-hover);
+    background: var(--border);
     color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.small-button:active {
+    transform: scale(0.94);
+    transition-duration: var(--dur-fast);
 }
 
 .small-button.delete {
@@ -390,11 +577,21 @@ a {
     border-radius: var(--radius);
     font-size: var(--text-base);
     text-transform: capitalize;
-    transition: border-color var(--transition), transform var(--transition);
+    transition: border-color var(--dur) var(--ease-out),
+        transform var(--dur) var(--ease-spring),
+        background var(--dur) var(--ease-out),
+        color var(--dur) var(--ease-out);
 }
 
 .option-button:hover {
     border-color: var(--border-hover);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 18px -12px rgba(245, 245, 245, 0.3);
+}
+
+.option-button:active {
+    transform: scale(0.96);
+    transition-duration: var(--dur-fast);
 }
 
 .option-button.selected {
@@ -402,6 +599,8 @@ a {
     color: var(--on-accent);
     border-color: var(--accent);
     transform: translateY(-1px);
+    box-shadow: 0 8px 20px -8px rgba(245, 245, 245, 0.35);
+    animation: pop-in var(--dur) var(--ease-spring);
 }
 
 .shift-button {
@@ -552,6 +751,9 @@ a {
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 1px;
+    transition: color var(--dur) var(--ease-out),
+        transform var(--dur) var(--ease-spring),
+        letter-spacing var(--dur) var(--ease-out);
 }
 
 .input-group input,
@@ -563,12 +765,45 @@ a {
     padding: 13px 14px;
     color: var(--text);
     outline: none;
-    transition: border-color var(--transition);
+    transition: border-color var(--dur) var(--ease-out),
+        box-shadow var(--dur) var(--ease-out),
+        background var(--dur) var(--ease-out),
+        transform var(--dur) var(--ease-spring);
+}
+
+.input-group input:hover,
+.input-group select:hover {
+    border-color: var(--border-hover);
 }
 
 .input-group input:focus,
 .input-group select:focus {
-    border-color: var(--border-hover);
+    border-color: var(--accent);
+    background: var(--surface);
+    box-shadow: 0 0 0 3px rgba(245, 245, 245, 0.12),
+        0 8px 20px -12px rgba(245, 245, 245, 0.35);
+    transform: translateY(-2px);
+    animation: ring-expand 0.55s var(--ease-out);
+}
+
+.input-group:focus-within label {
+    transform: translateX(2px);
+    letter-spacing: 1.5px;
+}
+
+/* Label lifts subtly with its focused field */
+.input-group:focus-within label {
+    color: var(--text);
+    transition: color var(--dur) var(--ease-out);
+}
+
+.input-group input::placeholder {
+    color: var(--text-dim);
+    transition: opacity var(--dur) var(--ease-out);
+}
+
+.input-group input:focus::placeholder {
+    opacity: 0.5;
 }
 
 .form-row {
@@ -590,11 +825,18 @@ a {
     color: var(--text-dim);
     padding: 10px 14px;
     border-radius: var(--radius-sm);
-    transition: background var(--transition), color var(--transition);
+    transition: background var(--dur) var(--ease-out),
+        color var(--dur) var(--ease-out),
+        transform var(--dur-fast) var(--ease-out);
 }
 
 .filter-button:hover {
     color: var(--text);
+    background: var(--surface);
+}
+
+.filter-button:active {
+    transform: scale(0.95);
 }
 
 .filter-button.active {
@@ -622,11 +864,15 @@ a {
     align-items: center;
     justify-content: space-between;
     gap: var(--space-4);
-    transition: border-color var(--transition);
+    transition: border-color var(--dur) var(--ease-out),
+        transform var(--dur) var(--ease-out),
+        box-shadow var(--dur) var(--ease-out);
 }
 
 .task-card:hover {
     border-color: #3a4553;
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.6);
 }
 
 .task-title-row {
@@ -710,6 +956,13 @@ a {
     justify-content: space-between;
     align-items: center;
     gap: 25px;
+    transition: border-color var(--dur) var(--ease-out),
+        transform var(--dur) var(--ease-out);
+}
+
+.history-card:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
 }
 
 .history-top {
@@ -803,6 +1056,13 @@ a {
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 22px;
+    transition: border-color var(--dur) var(--ease-out),
+        transform var(--dur) var(--ease-out);
+}
+
+.stat-card:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-3px);
 }
 
 .stat-card span {
@@ -984,5 +1244,20 @@ a {
 
     .skip-button {
         flex: 1;
+    }
+}
+
+/* ============================================================
+   Reduced motion — honor user preference
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
     }
 }

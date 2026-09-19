@@ -16,7 +16,7 @@ function Now() {
 
     const handleSubmit = async () => {
         if (!mood || !energy || !time) {
-            setMessage("Complete your check-in first.");
+            setMessage("Give us all three first — then we'll move.");
             return;
         }
 
@@ -139,10 +139,10 @@ function Now() {
                 throw new Error("Failed to skip action.");
             }
 
-            setMessage("Skipped.");
+            setMessage("Skipped — no pressure. Try another move.");
         } catch (error) {
             console.error(error);
-            setMessage("Failed to skip action.");
+            setMessage("Couldn't skip that one. Give it another go.");
         }
     };
 
@@ -162,7 +162,7 @@ function Now() {
                 throw new Error("Failed to save feedback");
             }
 
-            setMessage("Feedback saved ⚡");
+            setMessage("Locked in ⚡ See you at the next shift.");
         } catch (error) {
             console.error(error);
             setMessage("Failed to save feedback.");
@@ -187,18 +187,18 @@ function Now() {
                 <section className="checkin-card">
 
                     <div className="hero">
-                        <p className="eyebrow">SHIFT</p>
+                        <p className="eyebrow">SHIFT ⚡ MOMENTUM ON DEMAND</p>
 
-                        <h1>What should you do right now?</h1>
+                        <h1>One move. That's all it takes.</h1>
 
                         <p className="subtitle">
-                            Tell us how you feel. We'll give you one
-                            next move.
+                            Tell us where your head's at. We'll hand
+                            you the single thing worth doing right now.
                         </p>
                     </div>
 
                     <div className="checkin-section">
-                        <h2>How are you feeling?</h2>
+                        <h2>Where's your head at?</h2>
 
                         <div className="option-grid">
                             {[
@@ -225,7 +225,7 @@ function Now() {
                     </div>
 
                     <div className="checkin-section">
-                        <h2>Energy</h2>
+                        <h2>How's the tank?</h2>
 
                         <div className="option-grid three">
                             {["low", "medium", "high"].map((item) => (
@@ -245,7 +245,7 @@ function Now() {
                     </div>
 
                     <div className="checkin-section">
-                        <h2>Available time</h2>
+                        <h2>Got a minute? Or a few?</h2>
 
                         <div className="option-grid four">
                             {[5, 15, 30, 60].map((item) => (
@@ -275,7 +275,7 @@ function Now() {
                         onClick={handleSubmit}
                         disabled={loading}
                     >
-                        {loading ? "SHIFTING..." : "SHIFT →"}
+                        {loading ? "FINDING YOUR MOVE..." : "SHIFT →"}
                     </button>
 
                 </section>
@@ -284,7 +284,7 @@ function Now() {
             {recommendation && !actionId && (
                 <section className="recommendation-card">
 
-                    <p className="eyebrow">YOUR NEXT MOVE</p>
+                    <p className="eyebrow">✦ YOUR NEXT MOVE</p>
 
                     <h1>{recommendation.title}</h1>
 
@@ -298,7 +298,7 @@ function Now() {
                         className="shift-button"
                         onClick={startAction}
                     >
-                        START ⚡
+                        LET'S GO ⚡
                     </button>
 
                 </section>
@@ -307,7 +307,7 @@ function Now() {
             {recommendation && actionId && !showFeedback && (
                 <section className="recommendation-card">
 
-                    <p className="eyebrow">ACTION IN PROGRESS</p>
+                    <p className="eyebrow">⏱ IN MOTION</p>
 
                     <h1>{recommendation.title}</h1>
 
@@ -316,14 +316,14 @@ function Now() {
                             className="complete-button"
                             onClick={completeAction}
                         >
-                            COMPLETE ✓
+                            NAILED IT ✓
                         </button>
 
                         <button
                             className="skip-button"
                             onClick={skipAction}
                         >
-                            SKIP
+                            NOT THIS
                         </button>
                     </div>
 
@@ -346,9 +346,9 @@ function Now() {
             {showFeedback && (
                 <section className="recommendation-card">
 
-                    <p className="eyebrow">ONE LAST THING</p>
+                    <p className="eyebrow">✧ QUICK GUT CHECK</p>
 
-                    <h1>Did that shift your state?</h1>
+                    <h1>Did that shift something?</h1>
 
                     <div className="feedback-buttons">
                         <button

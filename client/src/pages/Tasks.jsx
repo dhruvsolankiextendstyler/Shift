@@ -36,7 +36,7 @@ function Tasks() {
 
     const saveTask = async () => {
         if (!title || !category || !estimatedTime) {
-            alert("Please fill all task details.");
+            alert("Fill in every field first — SHIFT needs the details.");
             return;
         }
 
@@ -124,10 +124,11 @@ function Tasks() {
 
             <div className="page-heading">
                 <div>
-                    <p className="eyebrow">YOUR ACTION POOL</p>
+                    <p className="eyebrow">◆ YOUR ACTION POOL</p>
                     <h1>Tasks</h1>
                     <p className="page-description">
-                        Add the things you might want SHIFT to recommend.
+                        Stock the pool. SHIFT reaches in here the
+                        moment it's time to move.
                     </p>
                 </div>
 
@@ -146,8 +147,8 @@ function Tasks() {
                 <div className="form-heading">
                     <h2>
                         {editingId
-                            ? "Edit task"
-                            : "Add a new task"}
+                            ? "Tweak this one"
+                            : "Drop in a task"}
                     </h2>
 
                     {editingId && (
@@ -226,8 +227,8 @@ function Tasks() {
                         onClick={saveTask}
                     >
                         {editingId
-                            ? "Update task"
-                            : "Add task"}
+                            ? "Save changes"
+                            : "Add to the pool"}
                     </button>
 
                 </div>
@@ -284,10 +285,10 @@ function Tasks() {
 
                 {filteredTasks.length === 0 ? (
                     <div className="empty-state">
-                        <h2>No tasks here.</h2>
+                        <h2>The pool's empty.</h2>
                         <p>
-                            Add something to your action pool
-                            above.
+                            Add your first task up top and give SHIFT
+                            something to work with.
                         </p>
                     </div>
                 ) : (

@@ -44,14 +44,14 @@ function Auth() {
 
                     <h1>
                         {isSignup
-                            ? "Create your account"
-                            : "Welcome back"}
+                            ? "Momentum starts here"
+                            : "Welcome back to the flow"}
                     </h1>
 
                     <p className="subtitle">
                         {isSignup
-                            ? "Start building your personal action engine."
-                            : "Sign in to pick up where you left off."}
+                            ? "Set up once, and never stare at a blank to-do list again."
+                            : "Sign back in and pick up the momentum."}
                     </p>
                 </div>
 
@@ -121,8 +121,8 @@ function Auth() {
 
                 <p className="auth-switch">
                     {isSignup
-                        ? "Already have an account?"
-                        : "New to SHIFT?"}{" "}
+                        ? "Already in the flow?"
+                        : "First time here?"}{" "}
                     <button
                         type="button"
                         className="text-button"

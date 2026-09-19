@@ -23,7 +23,7 @@ function Insights() {
     }, []);
 
     if (loading) {
-        return <p>Loading insights...</p>;
+        return <p className="message">Crunching your patterns...</p>;
     }
 
     const total = actions.length;
@@ -78,20 +78,20 @@ function Insights() {
 
             <div className="page-heading">
                 <div>
-                    <p className="eyebrow">YOUR PATTERNS</p>
+                    <p className="eyebrow">◈ THE BIGGER PICTURE</p>
                     <h1>Insights</h1>
                     <p className="page-description">
-                        See how your actions have been shifting over time.
+                        The story your moves tell over time.
                     </p>
                 </div>
             </div>
 
             {total === 0 ? (
                 <div className="empty-state">
-                    <h2>No insights yet.</h2>
+                    <h2>Nothing to show yet.</h2>
                     <p>
-                        Use SHIFT a few times and your patterns will
-                        appear here.
+                        Make a few moves and your patterns start to
+                        surface here.
                     </p>
                 </div>
             ) : (
@@ -125,7 +125,7 @@ function Insights() {
                         <section className="insight-card">
                             <p className="eyebrow">STATE SHIFT</p>
 
-                            <h2>How actions affected you</h2>
+                            <h2>Did the moves land?</h2>
 
                             <div className="feedback-stat">
                                 <span>Better</span>
@@ -146,7 +146,7 @@ function Insights() {
                         <section className="insight-card">
                             <p className="eyebrow">CATEGORY</p>
 
-                            <h2>Most used</h2>
+                            <h2>Where you spend it</h2>
 
                             <div className="big-insight">
                                 {mostUsedCategory}
