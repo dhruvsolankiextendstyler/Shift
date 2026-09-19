@@ -11,6 +11,7 @@ router.post("/", async (req, res) => {
             category: req.body.category,
             estimatedTime: req.body.estimatedTime,
             priority: req.body.priority,
+            type: req.body.type,
             user: req.userId
         });
 
@@ -38,11 +39,16 @@ router.get("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
     try {
         // Never let the client reassign ownership.
-        const { user, ...updates } = req.body;
+        const { user, incrementCompletion, ...updates } = req.body;
+
+        // Permanent tasks stay active; completing one just bumps the tally.
+        const update = incrementCompletion
+            ? { $inc: { completionCount: 1 } }
+            : updates;
 
         const task = await Task.findOneAndUpdate(
             { _id: req.params.id, user: req.userId },
-            updates,
+            update,
             { new: true, runValidators: true }
         );
 

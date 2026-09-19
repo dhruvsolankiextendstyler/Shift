@@ -1,6 +1,13 @@
-import { BrowserRouter, Routes, Route, Link, NavLink } from "react-router-dom";
+import {
+    BrowserRouter,
+    Routes,
+    Route,
+    Link,
+    NavLink
+} from "react-router-dom";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ToastProvider } from "./context/ToastContext";
 import Auth from "./pages/Auth";
 import Now from "./pages/Now";
 import Tasks from "./pages/Tasks";
@@ -60,18 +67,53 @@ function AppShell() {
                         <Route path="/tasks" element={<Tasks />} />
                         <Route path="/history" element={<History />} />
                         <Route path="/insights" element={<Insights />} />
+                        <Route path="*" element={<NotFound />} />
                     </Routes>
                 </main>
+
+                <Footer />
             </div>
         </BrowserRouter>
     );
 }
 
+function NotFound() {
+    return (
+        <div className="not-found">
+            <p className="eyebrow">LOST THE THREAD</p>
+            <h1>404</h1>
+            <p className="subtitle">
+                This page drifted off. Let's get you back in motion.
+            </p>
+            <Link to="/" className="secondary-button not-found-link">
+                BACK TO NOW →
+            </Link>
+        </div>
+    );
+}
+
+function Footer() {
+    return (
+        <footer className="footer">
+            <span>SHIFT ⚡ — momentum on demand</span>
+            <a
+                href="https://dhruv-solanki-about.vercel.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                Crafted by Dhruv Solanki ↗
+            </a>
+        </footer>
+    );
+}
+
 function App() {
     return (
-        <AuthProvider>
-            <AppShell />
-        </AuthProvider>
+        <ToastProvider>
+            <AuthProvider>
+                <AppShell />
+            </AuthProvider>
+        </ToastProvider>
     );
 }
 

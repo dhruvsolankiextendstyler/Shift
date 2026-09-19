@@ -1,24 +1,37 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../services/api";
+import { useToast } from "../context/ToastContext";
+import ErrorState from "../components/ErrorState";
 
 function Tasks() {
+    const { toast } = useToast();
+
     const [tasks, setTasks] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     const [title, setTitle] = useState("");
     const [category, setCategory] = useState("");
     const [estimatedTime, setEstimatedTime] = useState("");
     const [priority, setPriority] = useState("medium");
+    const [type, setType] = useState("oneoff");
 
     const [filter, setFilter] = useState("active");
     const [editingId, setEditingId] = useState(null);
 
     const fetchTasks = async () => {
+        setLoading(true);
+        setError(false);
         try {
             const response = await apiFetch("/tasks");
-            const data = await response.json();
-            setTasks(data);
-        } catch (error) {
-            console.error("Fetch tasks error:", error);
+            if (!response.ok) throw new Error("Request failed");
+            setTasks(await response.json());
+        } catch (err) {
+            console.error("Fetch tasks error:", err);
+            setError(true);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -31,12 +44,16 @@ function Tasks() {
         setCategory("");
         setEstimatedTime("");
         setPriority("medium");
+        setType("oneoff");
         setEditingId(null);
     };
 
     const saveTask = async () => {
         if (!title || !category || !estimatedTime) {
-            alert("Fill in every field first — SHIFT needs the details.");
+            toast(
+                "Fill in every field first — SHIFT needs the details.",
+                "error"
+            );
             return;
         }
 
@@ -44,23 +61,23 @@ function Tasks() {
             title,
             category,
             estimatedTime: Number(estimatedTime),
-            priority
+            priority,
+            type
         };
 
-        try {
-            let response;
+        const wasEditing = Boolean(editingId);
+        setSaving(true);
 
-            if (editingId) {
-                response = await apiFetch(`/tasks/${editingId}`, {
-                    method: "PUT",
-                    body: JSON.stringify(taskData)
-                });
-            } else {
-                response = await apiFetch("/tasks", {
-                    method: "POST",
-                    body: JSON.stringify(taskData)
-                });
-            }
+        try {
+            const response = wasEditing
+                ? await apiFetch(`/tasks/${editingId}`, {
+                      method: "PUT",
+                      body: JSON.stringify(taskData)
+                  })
+                : await apiFetch("/tasks", {
+                      method: "POST",
+                      body: JSON.stringify(taskData)
+                  });
 
             if (!response.ok) {
                 const data = await response.json();
@@ -68,10 +85,16 @@ function Tasks() {
             }
 
             resetForm();
-            fetchTasks();
+            await fetchTasks();
+            toast(
+                wasEditing ? "Task updated." : "Task added to the pool.",
+                "success"
+            );
         } catch (error) {
             console.error(error);
-            alert(error.message);
+            toast(error.message, "error");
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -81,6 +104,7 @@ function Tasks() {
         setCategory(task.category);
         setEstimatedTime(task.estimatedTime);
         setPriority(task.priority);
+        setType(task.type || "oneoff");
 
         window.scrollTo({
             top: 0,
@@ -88,23 +112,52 @@ function Tasks() {
         });
     };
 
-    const completeTask = async (id) => {
-        await apiFetch(`/tasks/${id}`, {
-            method: "PUT",
-            body: JSON.stringify({
-                status: "completed"
-            })
-        });
+    const completeTask = async (task) => {
+        // Permanent tasks stay in the pool; each completion just bumps the tally.
+        const isPermanent = task.type === "permanent";
+        const body = isPermanent
+            ? { incrementCompletion: true }
+            : { status: "completed" };
 
-        fetchTasks();
+        try {
+            const res = await apiFetch(`/tasks/${task._id}`, {
+                method: "PUT",
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) throw new Error();
+            await fetchTasks();
+            toast(
+                isPermanent ? "Logged +1 ⚡" : "Nice — task complete ✓",
+                "success"
+            );
+        } catch {
+            toast("Couldn't update that task.", "error");
+        }
     };
 
-    const deleteTask = async (id) => {
-        await apiFetch(`/tasks/${id}`, {
-            method: "DELETE"
-        });
+    // Soft-delete with an undo window (the API keeps deleted tasks).
+    const deleteTask = async (task) => {
+        try {
+            const res = await apiFetch(`/tasks/${task._id}`, {
+                method: "DELETE"
+            });
+            if (!res.ok) throw new Error();
+            await fetchTasks();
 
-        fetchTasks();
+            toast("Task deleted.", "success", {
+                label: "Undo",
+                onClick: async () => {
+                    await apiFetch(`/tasks/${task._id}`, {
+                        method: "PUT",
+                        body: JSON.stringify({ status: "active" })
+                    });
+                    fetchTasks();
+                    toast("Task restored.", "info");
+                }
+            });
+        } catch {
+            toast("Couldn't delete that task.", "error");
+        }
     };
 
     const filteredTasks = tasks.filter((task) => {
@@ -118,6 +171,14 @@ function Tasks() {
 
         return true;
     });
+
+    if (loading) {
+        return <p className="message">Loading your pool...</p>;
+    }
+
+    if (error) {
+        return <ErrorState onRetry={fetchTasks} />;
+    }
 
     return (
         <div className="tasks-page">
@@ -222,13 +283,36 @@ function Tasks() {
 
                     </div>
 
+                    <div className="input-group">
+                        <label>Type</label>
+
+                        <select
+                            value={type}
+                            onChange={(e) =>
+                                setType(e.target.value)
+                            }
+                        >
+                            <option value="oneoff">
+                                One-time — clears once done
+                            </option>
+                            <option value="permanent">
+                                Permanent — stays, counts every time
+                            </option>
+                        </select>
+                    </div>
+
                     <button
                         className="primary-button"
                         onClick={saveTask}
+                        disabled={saving}
                     >
-                        {editingId
-                            ? "Save changes"
-                            : "Add to the pool"}
+                        {saving ? (
+                            <span className="btn-spinner" />
+                        ) : editingId ? (
+                            "Save changes"
+                        ) : (
+                            "Add to the pool"
+                        )}
                     </button>
 
                 </div>
@@ -308,6 +392,12 @@ function Tasks() {
                                     >
                                         {task.priority}
                                     </span>
+
+                                    {task.type === "permanent" && (
+                                        <span className="type-badge">
+                                            ∞ permanent
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div className="task-meta">
@@ -324,7 +414,9 @@ function Tasks() {
                                     <span>•</span>
 
                                     <span>
-                                        {task.status}
+                                        {task.type === "permanent"
+                                            ? `done ${task.completionCount || 0}×`
+                                            : task.status}
                                     </span>
                                 </div>
 
@@ -346,21 +438,19 @@ function Tasks() {
                                         <button
                                             className="small-button complete"
                                             onClick={() =>
-                                                completeTask(
-                                                    task._id
-                                                )
+                                                completeTask(task)
                                             }
                                         >
-                                            Complete
+                                            {task.type === "permanent"
+                                                ? "Log +1"
+                                                : "Complete"}
                                         </button>
                                     </>
                                 )}
 
                                 <button
                                     className="small-button delete"
-                                    onClick={() =>
-                                        deleteTask(task._id)
-                                    }
+                                    onClick={() => deleteTask(task)}
                                 >
                                     Delete
                                 </button>

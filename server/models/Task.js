@@ -36,6 +36,19 @@ const taskSchema = new mongoose.Schema(
             type: String,
             enum: ["active", "completed", "deleted"],
             default: "active"
+        },
+
+        // "oneoff" tasks disappear once completed; "permanent" tasks
+        // stay active forever and just tally how often they're done.
+        type: {
+            type: String,
+            enum: ["oneoff", "permanent"],
+            default: "oneoff"
+        },
+
+        completionCount: {
+            type: Number,
+            default: 0
         }
     },
     {

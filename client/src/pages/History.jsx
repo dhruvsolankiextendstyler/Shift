@@ -1,28 +1,37 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../services/api";
+import ErrorState from "../components/ErrorState";
 
 function History() {
     const [actions, setActions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    const fetchHistory = async () => {
+        setLoading(true);
+        setError(false);
+        try {
+            const response = await apiFetch("/actions");
+            if (!response.ok) throw new Error("Request failed");
+            setActions(await response.json());
+        } catch (err) {
+            console.error("Failed to load history:", err);
+            setError(true);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchHistory = async () => {
-            try {
-                const response = await apiFetch("/actions");
-                const data = await response.json();
-                setActions(data);
-            } catch (error) {
-                console.error("Failed to load history:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchHistory();
     }, []);
 
     if (loading) {
         return <p className="message">Pulling up your moves...</p>;
+    }
+
+    if (error) {
+        return <ErrorState onRetry={fetchHistory} />;
     }
 
     return (
