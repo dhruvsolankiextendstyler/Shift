@@ -54,9 +54,18 @@
     /* Data-viz palette (validated dark-mode hues) */
     --viz-blue: #3987e5;
     --viz-good: #0ca30c;
+    --viz-warn: #e0982a;
     --viz-worse: #d03b3b;
     --viz-muted: #697586;
     --viz-track: #1d2530;
+
+    /* Semantic tints (translucent — sit on dark surfaces) */
+    --good-tint: rgba(12, 163, 12, 0.14);
+    --good-text: #3fc23f;
+    --warn-tint: rgba(224, 152, 42, 0.15);
+    --warn-text: #e6a53f;
+    --worse-tint: rgba(208, 59, 59, 0.15);
+    --worse-text: #ef6a6a;
 
     /* Motion */
     --transition: 0.2s;
@@ -727,6 +736,16 @@ select:focus-visible {
 .complete-button {
     flex: 1;
     min-height: 52px;
+    border-color: rgba(12, 163, 12, 0.5);
+    background: var(--good-tint);
+    color: var(--good-text);
+    font-weight: 700;
+}
+
+.complete-button:hover {
+    border-color: var(--viz-good);
+    background: rgba(12, 163, 12, 0.22);
+    box-shadow: 0 10px 22px -14px rgba(12, 163, 12, 0.7);
 }
 
 .skip-button {
@@ -737,6 +756,26 @@ select:focus-visible {
 .feedback-buttons button {
     flex: 1;
     min-height: 52px;
+}
+
+.feedback-buttons .fb-better {
+    border-color: rgba(12, 163, 12, 0.45);
+    color: var(--good-text);
+}
+
+.feedback-buttons .fb-better:hover {
+    border-color: var(--viz-good);
+    background: var(--good-tint);
+}
+
+.feedback-buttons .fb-worse {
+    border-color: rgba(208, 59, 59, 0.45);
+    color: var(--worse-text);
+}
+
+.feedback-buttons .fb-worse:hover {
+    border-color: var(--viz-worse);
+    background: var(--worse-tint);
 }
 
 .secondary-button {
@@ -979,20 +1018,24 @@ select:focus-visible {
     letter-spacing: 0.8px;
     padding: 4px 7px;
     border-radius: 5px;
-    border: 1px solid var(--border-strong);
-    color: var(--text-muted);
+    border: 1px solid rgba(57, 135, 229, 0.4);
+    background: rgba(57, 135, 229, 0.12);
+    color: #6ba9ee;
 }
 
 .priority-badge.high {
-    color: #ffffff;
+    background: var(--worse-tint);
+    color: var(--worse-text);
 }
 
 .priority-badge.medium {
-    color: #aab3bf;
+    background: var(--warn-tint);
+    color: var(--warn-text);
 }
 
 .priority-badge.low {
-    color: var(--text-dim);
+    background: var(--good-tint);
+    color: var(--good-text);
 }
 
 .task-actions {
@@ -1126,8 +1169,8 @@ select:focus-visible {
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: var(--space-1);
-    margin-bottom: var(--space-3);
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
 }
 
 .stat-card {
@@ -1158,7 +1201,8 @@ select:focus-visible {
 .insights-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--space-3);
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
 }
 
 .insight-card {
@@ -1222,7 +1266,7 @@ select:focus-visible {
 
 .insight-card.wide {
     grid-column: 1 / -1;
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-4);
 }
 
 .chart-sub {
@@ -2203,6 +2247,324 @@ select:focus-visible {
     .skip-button {
         flex: 1;
     }
+}
+
+/* ============================================================
+   Modal — shared overlay (logout confirm + reader sheet)
+   ============================================================ */
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.62);
+    backdrop-filter: blur(3px);
+    display: flex;
+    z-index: 1000;
+    animation: fade-in var(--dur) var(--ease-out) both;
+}
+
+.modal-dialog {
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+}
+
+.modal-dialog .modal-panel {
+    width: min(420px, 100%);
+    background: var(--surface-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
+    animation: pop-in var(--dur) var(--ease-spring) both;
+}
+
+.modal-title {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-lg);
+}
+
+.modal-text {
+    margin: 0 0 var(--space-5);
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+.modal-actions {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.modal-actions .secondary-button,
+.modal-actions .shift-button {
+    flex: 1;
+    margin: 0;
+}
+
+.danger-button {
+    flex: 1;
+    border: 1px solid #7f2626;
+    border-radius: var(--radius);
+    padding: 14px 22px;
+    background: var(--viz-worse);
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    transition: background var(--dur) var(--ease-out),
+        transform var(--dur) var(--ease-spring),
+        box-shadow var(--dur) var(--ease-out);
+}
+
+.danger-button:hover {
+    background: #b83333;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px -12px rgba(208, 59, 59, 0.7);
+}
+
+.danger-button:active {
+    transform: translateY(0) scale(0.97);
+    transition-duration: var(--dur-fast);
+}
+
+/* ============================================================
+   Read anything — floating button + full-screen reader sheet
+   ============================================================ */
+
+.read-fab {
+    position: fixed;
+    right: 18px;
+    bottom: 70px;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: 1px solid var(--border-strong);
+    background: var(--accent);
+    color: var(--on-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 800;
+    box-shadow: 0 14px 30px -10px rgba(0, 0, 0, 0.7);
+    animation: fade-up var(--dur) var(--ease-out) both,
+        glow-breathe 4s var(--ease-in-out) infinite;
+    transition: transform var(--dur) var(--ease-spring),
+        background var(--dur) var(--ease-out);
+}
+
+.read-fab svg {
+    width: 26px;
+    height: 26px;
+    overflow: visible;
+    perspective: 120px;
+}
+
+/* Pages hinge at the spine; rest state is an open book. */
+.book-page {
+    transform-box: fill-box;
+}
+
+.book-left {
+    transform-origin: right center;
+}
+
+.book-right {
+    transform-origin: left center;
+}
+
+/* Hover / focus / tap replays the book swinging open. */
+.read-fab:hover .book-left,
+.read-fab:focus-visible .book-left,
+.read-fab:active .book-left {
+    animation: book-open-left 0.6s var(--ease-out);
+}
+
+.read-fab:hover .book-right,
+.read-fab:focus-visible .book-right,
+.read-fab:active .book-right {
+    animation: book-open-right 0.6s var(--ease-out);
+}
+
+@keyframes book-open-left {
+    from {
+        transform: rotateY(-78deg);
+    }
+    to {
+        transform: rotateY(0);
+    }
+}
+
+@keyframes book-open-right {
+    from {
+        transform: rotateY(78deg);
+    }
+    to {
+        transform: rotateY(0);
+    }
+}
+
+.read-fab:hover {
+    background: var(--accent-hover);
+    transform: translateY(-3px) scale(1.06);
+}
+
+.read-fab:active {
+    transform: translateY(0) scale(0.94);
+    transition-duration: var(--dur-fast);
+}
+
+/* Desktop has no bottom pager, so sit lower */
+@media (min-width: 701px) {
+    .read-fab {
+        bottom: 30px;
+        right: 30px;
+    }
+}
+
+.modal-sheet {
+    justify-content: center;
+    align-items: stretch;
+}
+
+.modal-sheet .modal-panel {
+    width: 100%;
+    max-width: 720px;
+    background: var(--bg);
+    display: flex;
+    animation: sheet-up var(--dur-slow) var(--ease-out) both;
+}
+
+@media (min-width: 701px) {
+    .modal-sheet {
+        padding: var(--space-5);
+    }
+    .modal-sheet .modal-panel {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.85);
+    }
+}
+
+@keyframes sheet-up {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.read-sheet {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+.read-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4) var(--space-4) var(--space-2);
+    flex-shrink: 0;
+}
+
+.read-eyebrow {
+    margin: 0;
+}
+
+.read-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 30px;
+    line-height: 1;
+    width: 36px;
+    height: 36px;
+    transition: color var(--dur) var(--ease-out);
+}
+
+.read-close:hover {
+    color: var(--text);
+}
+
+.read-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--space-2) var(--space-4) var(--space-4);
+}
+
+.read-status {
+    text-align: center;
+    padding: var(--space-6) 0;
+}
+
+.read-body {
+    animation: fade-up var(--dur) var(--ease-out) both;
+}
+
+.read-thumb {
+    width: 100%;
+    max-height: 320px;
+    object-fit: cover;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    margin-bottom: var(--space-4);
+    animation: fade-in var(--dur-slow) var(--ease-out) both;
+}
+
+.read-heading {
+    margin: 0 0 var(--space-1);
+    font-size: var(--text-xl);
+    line-height: 1.15;
+}
+
+.read-desc {
+    margin: 0 0 var(--space-4);
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: var(--text-sm);
+}
+
+.read-extract {
+    margin: 0 0 var(--space-4);
+    color: var(--text-muted);
+    line-height: 1.7;
+    font-size: var(--text-md);
+}
+
+.read-more {
+    display: inline-block;
+    color: var(--text);
+    font-weight: 700;
+    border-bottom: 1px solid var(--border-hover);
+    padding-bottom: 2px;
+    transition: border-color var(--dur) var(--ease-out);
+}
+
+.read-more:hover {
+    border-color: var(--text);
+}
+
+.read-actions {
+    display: flex;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4) var(--space-4);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.read-actions .secondary-button,
+.read-actions .shift-button {
+    flex: 1;
+    margin: 0;
+    min-height: 0;
 }
 
 /* ============================================================

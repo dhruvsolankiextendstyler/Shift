@@ -8,6 +8,7 @@ function Auth() {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
@@ -16,12 +17,19 @@ function Auth() {
     const switchMode = () => {
         setMode(isSignup ? "login" : "signup");
         setError("");
+        setConfirmPassword("");
     };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
         setError("");
         setLoading(true);
+
+        if (isSignup && password !== confirmPassword) {
+            setError("Passwords don't match.");
+            setLoading(false);
+            return;
+        }
 
         try {
             if (isSignup) {
@@ -103,6 +111,21 @@ function Auth() {
                             }
                         />
                     </div>
+
+                    {isSignup && (
+                        <div className="input-group">
+                            <label>Confirm password</label>
+                            <input
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) =>
+                                    setConfirmPassword(e.target.value)
+                                }
+                                placeholder="Re-enter your password"
+                                autoComplete="new-password"
+                            />
+                        </div>
+                    )}
 
                     {error && <p className="message">{error}</p>}
 

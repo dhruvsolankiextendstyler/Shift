@@ -1,7 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../services/api";
+import ReadAnything from "../components/ReadAnything";
 
-function Now() {
+function Now({ active = true }) {
+    const navigate = useNavigate();
+
     const [mood, setMood] = useState("");
     const [energy, setEnergy] = useState("");
     const [time, setTime] = useState("");
@@ -13,6 +17,7 @@ function Now() {
     const [message, setMessage] = useState("");
     const [showFeedback, setShowFeedback] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [noTasks, setNoTasks] = useState(false);
 
     const handleSubmit = async () => {
         if (!mood || !energy || !time) {
@@ -21,6 +26,7 @@ function Now() {
         }
 
         setLoading(true);
+        setNoTasks(false);
 
         try {
             const sessionResponse = await apiFetch("/sessions", {
@@ -54,6 +60,12 @@ function Now() {
                 await recommendationResponse.json();
 
             if (!recommendationResponse.ok) {
+                // No tasks in the pool yet — point them at Tasks.
+                if (recommendationResponse.status === 404) {
+                    setNoTasks(true);
+                    setMessage("");
+                    return;
+                }
                 throw new Error(recommendationData.error);
             }
 
@@ -108,11 +120,14 @@ function Now() {
                 throw new Error("Failed to complete action.");
             }
 
+            // Permanent tasks stay in the pool; completing one just bumps the tally.
             await apiFetch(`/tasks/${recommendation._id}`, {
                 method: "PUT",
-                body: JSON.stringify({
-                    status: "completed"
-                })
+                body: JSON.stringify(
+                    recommendation.type === "permanent"
+                        ? { incrementCompletion: true }
+                        : { status: "completed" }
+                )
             });
 
             setShowFeedback(true);
@@ -178,6 +193,7 @@ function Now() {
         setRecommendation(null);
         setMessage("");
         setShowFeedback(false);
+        setNoTasks(false);
     };
 
     return (
@@ -270,6 +286,21 @@ function Now() {
                         <p className="message">{message}</p>
                     )}
 
+                    {noTasks && (
+                        <div className="empty-state">
+                            <p className="message">
+                                Your pool's empty — add a task and
+                                SHIFT has something to hand you.
+                            </p>
+                            <button
+                                className="secondary-button"
+                                onClick={() => navigate("/tasks")}
+                            >
+                                GO TO TASKS →
+                            </button>
+                        </div>
+                    )}
+
                     <button
                         className="shift-button"
                         onClick={handleSubmit}
@@ -352,6 +383,7 @@ function Now() {
 
                     <div className="feedback-buttons">
                         <button
+                            className="fb-better"
                             onClick={() =>
                                 submitFeedback("better")
                             }
@@ -368,6 +400,7 @@ function Now() {
                         </button>
 
                         <button
+                            className="fb-worse"
                             onClick={() =>
                                 submitFeedback("worse")
                             }
@@ -389,6 +422,8 @@ function Now() {
 
                 </section>
             )}
+
+            <ReadAnything active={active} />
         </div>
     );
 }

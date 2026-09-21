@@ -163,7 +163,7 @@ function MobileShell({ user, logout }) {
             <div className="embla" ref={emblaRef}>
                 <div className="embla__container">
                     <div className="embla__slide">
-                        <Now />
+                        <Now active={current.section === "now"} />
                     </div>
                     <div className="embla__slide">
                         <Tasks />

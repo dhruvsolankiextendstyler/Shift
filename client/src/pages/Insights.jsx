@@ -367,7 +367,7 @@ export function useInsightsData() {
             .map(([label, value]) => ({ label, value }));
 
         // Daily counts (heatmap + overall streak)
-        const dayCounts = {};
+        const dayCounts = {};   
         const activeDays = new Set();
         actions.forEach((a) => {
             if (a.createdAt) {

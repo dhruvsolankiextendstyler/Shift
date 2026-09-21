@@ -112,28 +112,8 @@ function Tasks() {
         });
     };
 
-    const completeTask = async (task) => {
-        // Permanent tasks stay in the pool; each completion just bumps the tally.
-        const isPermanent = task.type === "permanent";
-        const body = isPermanent
-            ? { incrementCompletion: true }
-            : { status: "completed" };
-
-        try {
-            const res = await apiFetch(`/tasks/${task._id}`, {
-                method: "PUT",
-                body: JSON.stringify(body)
-            });
-            if (!res.ok) throw new Error();
-            await fetchTasks();
-            toast(
-                isPermanent ? "Logged +1 ⚡" : "Nice — task complete ✓",
-                "success"
-            );
-        } catch {
-            toast("Couldn't update that task.", "error");
-        }
-    };
+    // Completing tasks happens through the Now flow (it logs an Action that
+    // History/Insights read). The Tasks page only edits and deletes.
 
     // Soft-delete with an undo window (the API keeps deleted tasks).
     const deleteTask = async (task) => {
@@ -425,27 +405,12 @@ function Tasks() {
                             <div className="task-actions">
 
                                 {task.status === "active" && (
-                                    <>
-                                        <button
-                                            className="small-button"
-                                            onClick={() =>
-                                                editTask(task)
-                                            }
-                                        >
-                                            Edit
-                                        </button>
-
-                                        <button
-                                            className="small-button complete"
-                                            onClick={() =>
-                                                completeTask(task)
-                                            }
-                                        >
-                                            {task.type === "permanent"
-                                                ? "Log +1"
-                                                : "Complete"}
-                                        </button>
-                                    </>
+                                    <button
+                                        className="small-button"
+                                        onClick={() => editTask(task)}
+                                    >
+                                        Edit
+                                    </button>
                                 )}
 
                                 <button

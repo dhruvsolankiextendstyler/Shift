@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
     BrowserRouter,
     Routes,
@@ -16,10 +17,14 @@ import Tasks from "./pages/Tasks";
 import History from "./pages/History";
 import Insights from "./pages/Insights";
 import MobileShell from "./components/MobileShell";
+import Modal from "./components/Modal";
 
 function AppShell() {
-    const { user, loading, logout } = useAuth();
+    const { user, loading, logout: rawLogout } = useAuth();
     const isMobile = useIsMobile();
+
+    const [confirmingLogout, setConfirmingLogout] = useState(false);
+    const logout = () => setConfirmingLogout(true);
 
     if (loading) {
         return (
@@ -38,13 +43,45 @@ function AppShell() {
     }
 
     return (
-        <BrowserRouter>
-            {isMobile ? (
-                <MobileApp user={user} logout={logout} />
-            ) : (
-                <DesktopApp user={user} logout={logout} />
-            )}
-        </BrowserRouter>
+        <>
+            <BrowserRouter>
+                {isMobile ? (
+                    <MobileApp user={user} logout={logout} />
+                ) : (
+                    <DesktopApp user={user} logout={logout} />
+                )}
+            </BrowserRouter>
+
+            <Modal
+                open={confirmingLogout}
+                onClose={() => setConfirmingLogout(false)}
+                labelledBy="logout-title"
+            >
+                <h2 id="logout-title" className="modal-title">
+                    Log out of SHIFT?
+                </h2>
+                <p className="modal-text">
+                    You'll need to sign back in to pick up your momentum.
+                </p>
+                <div className="modal-actions">
+                    <button
+                        className="secondary-button"
+                        onClick={() => setConfirmingLogout(false)}
+                    >
+                        Stay
+                    </button>
+                    <button
+                        className="danger-button"
+                        onClick={() => {
+                            setConfirmingLogout(false);
+                            rawLogout();
+                        }}
+                    >
+                        Log out
+                    </button>
+                </div>
+            </Modal>
+        </>
     );
 }
 
