@@ -32,9 +32,14 @@ function Sidebar({ open, onClose, user, activePath, onNavigate, onLogout }) {
                     <span className="sidebar-avatar">
                         {(user?.name || "?").charAt(0).toUpperCase()}
                     </span>
-                    <div>
+                    <div className="sidebar-user-text">
                         <p className="sidebar-name">{user?.name}</p>
-                        <p className="sidebar-role">Signed in</p>
+                        <p
+                            className="sidebar-role"
+                            title={user?.email}
+                        >
+                            {user?.email}
+                        </p>
                     </div>
                 </div>
 

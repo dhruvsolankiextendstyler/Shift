@@ -8,16 +8,28 @@ import API_URL, {
     apiFetch,
     getToken,
     setToken,
-    clearToken
+    clearToken,
+    getStoredUser,
+    setStoredUser
 } from "../services/api";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [user, setUserState] = useState(getStoredUser);
+    // Only block on the loading screen when we have a token but no cached
+    // user to render optimistically.
+    const [loading, setLoading] = useState(
+        () => !!getToken() && !getStoredUser()
+    );
 
-    // On load, if we have a token, confirm it's still valid.
+    const setUser = (u) => {
+        setUserState(u);
+        if (u) setStoredUser(u);
+    };
+
+    // On load, if we have a token, refresh the user in the background. With a
+    // cached user we've already rendered, so this never blocks the UI.
     useEffect(() => {
         const token = getToken();
 
@@ -63,7 +75,7 @@ export function AuthProvider({ children }) {
 
     const logout = () => {
         clearToken();
-        setUser(null);
+        setUserState(null);
     };
 
     return (

@@ -114,10 +114,37 @@ function randomTopic(exclude) {
     return pick;
 }
 
+// Drop exintro so we get the full article prose (extracts already strips
+// references/infoboxes). exsectionformat=wiki wraps headings in == == so we
+// can render them as real headings. pageprops flags disambiguation pages.
 const API =
     "https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*" +
-    "&prop=extracts|pageimages|description&exintro=1&explaintext=1" +
+    "&prop=extracts|pageimages|description|pageprops&explaintext=1" +
+    "&exsectionformat=wiki&ppprop=disambiguation" +
     "&piprop=thumbnail&pithumbsize=640&redirects=1&titles=";
+
+// Trailing sections that are link-dumps, not reading material. Stop here.
+const STOP_SECTIONS =
+    /^(see also|references|external links|notes|further reading|bibliography|citations|sources|footnotes)$/i;
+
+// Split a wiki-section plaintext extract into structured heading/paragraph
+// blocks so the reader isn't one undifferentiated wall of text.
+function parseExtract(text) {
+    const blocks = [];
+    for (const raw of text.split("\n")) {
+        const line = raw.trim();
+        if (!line) continue;
+
+        const heading = line.match(/^(={2,6})\s*(.+?)\s*\1$/);
+        if (heading) {
+            if (STOP_SECTIONS.test(heading[2])) break;
+            blocks.push({ type: "h", level: heading[1].length, text: heading[2] });
+        } else {
+            blocks.push({ type: "p", text: line });
+        }
+    }
+    return blocks;
+}
 
 // Floating "Read anything" button → pulls a random topic into a full-screen
 // in-app reader. `active` gates rendering so the fixed button doesn't bleed
@@ -131,25 +158,45 @@ function ReadAnything({ active = true }) {
     const load = useCallback(async (exclude) => {
         setLoading(true);
         setError("");
+        let lastPick = exclude;
         try {
-            const topic = randomTopic(exclude);
-            const res = await fetch(API + encodeURIComponent(topic));
-            if (!res.ok) throw new Error("fetch failed");
-            const data = await res.json();
-            const page = Object.values(data.query.pages)[0];
-            if (!page || page.missing !== undefined || !page.extract) {
-                throw new Error("no content");
+            // Retry a few times so a disambiguation/empty hit rolls to a
+            // real article instead of surfacing to the reader.
+            for (let attempt = 0; attempt < 4; attempt++) {
+                const topic = randomTopic(lastPick);
+                lastPick = topic;
+
+                const res = await fetch(API + encodeURIComponent(topic));
+                if (!res.ok) throw new Error("fetch failed");
+                const data = await res.json();
+                const page = Object.values(data.query.pages)[0];
+
+                const isDisambig =
+                    page?.pageprops?.disambiguation !== undefined;
+                if (
+                    !page ||
+                    page.missing !== undefined ||
+                    !page.extract ||
+                    isDisambig
+                ) {
+                    continue;
+                }
+
+                setArticle({
+                    topic,
+                    title: page.title,
+                    description: page.description,
+                    blocks: parseExtract(page.extract),
+                    thumb: page.thumbnail?.source,
+                    url:
+                        "https://en.wikipedia.org/wiki/" +
+                        encodeURIComponent(
+                            page.title.replace(/ /g, "_")
+                        )
+                });
+                return;
             }
-            setArticle({
-                topic,
-                title: page.title,
-                description: page.description,
-                extract: page.extract,
-                thumb: page.thumbnail?.source,
-                url:
-                    "https://en.wikipedia.org/wiki/" +
-                    encodeURIComponent(page.title.replace(/ /g, "_"))
-            });
+            throw new Error("no content");
         } catch {
             setError("Couldn't reach the library. Try another.");
             setArticle(null);
@@ -245,9 +292,29 @@ function ReadAnything({ active = true }) {
                                         {article.description}
                                     </p>
                                 )}
-                                <p className="read-extract">
-                                    {article.extract}
-                                </p>
+                                <div className="read-extract">
+                                    {article.blocks.map((b, i) =>
+                                        b.type === "h" ? (
+                                            <h2
+                                                key={i}
+                                                className={
+                                                    b.level >= 3
+                                                        ? "read-h read-h-sub"
+                                                        : "read-h"
+                                                }
+                                            >
+                                                {b.text}
+                                            </h2>
+                                        ) : (
+                                            <p
+                                                key={i}
+                                                className="read-p"
+                                            >
+                                                {b.text}
+                                            </p>
+                                        )
+                                    )}
+                                </div>
                                 {article.url && (
                                     <a
                                         className="read-more"

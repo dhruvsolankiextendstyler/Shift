@@ -2,6 +2,19 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "../services/api";
 import { useToast } from "../context/ToastContext";
 import ErrorState from "../components/ErrorState";
+import Modal from "../components/Modal";
+import Select from "../components/Select";
+
+const PRIORITY_OPTIONS = [
+    { value: "low", label: "Low" },
+    { value: "medium", label: "Medium" },
+    { value: "high", label: "High" }
+];
+
+const TYPE_OPTIONS = [
+    { value: "oneoff", label: "One-time — clears once done" },
+    { value: "permanent", label: "Permanent — stays, counts every time" }
+];
 
 function Tasks() {
     const { toast } = useToast();
@@ -15,10 +28,11 @@ function Tasks() {
     const [category, setCategory] = useState("");
     const [estimatedTime, setEstimatedTime] = useState("");
     const [priority, setPriority] = useState("medium");
-    const [type, setType] = useState("oneoff");
+    const [type, setType] = useState("permanent");
 
     const [filter, setFilter] = useState("active");
     const [editingId, setEditingId] = useState(null);
+    const [deletingTask, setDeletingTask] = useState(null);
 
     const fetchTasks = async () => {
         setLoading(true);
@@ -44,7 +58,7 @@ function Tasks() {
         setCategory("");
         setEstimatedTime("");
         setPriority("medium");
-        setType("oneoff");
+        setType("permanent");
         setEditingId(null);
     };
 
@@ -247,18 +261,11 @@ function Tasks() {
                         <div className="input-group">
                             <label>Priority</label>
 
-                            <select
+                            <Select
                                 value={priority}
-                                onChange={(e) =>
-                                    setPriority(e.target.value)
-                                }
-                            >
-                                <option value="low">Low</option>
-                                <option value="medium">
-                                    Medium
-                                </option>
-                                <option value="high">High</option>
-                            </select>
+                                onChange={setPriority}
+                                options={PRIORITY_OPTIONS}
+                            />
                         </div>
 
                     </div>
@@ -266,19 +273,11 @@ function Tasks() {
                     <div className="input-group">
                         <label>Type</label>
 
-                        <select
+                        <Select
                             value={type}
-                            onChange={(e) =>
-                                setType(e.target.value)
-                            }
-                        >
-                            <option value="oneoff">
-                                One-time — clears once done
-                            </option>
-                            <option value="permanent">
-                                Permanent — stays, counts every time
-                            </option>
-                        </select>
+                            onChange={setType}
+                            options={TYPE_OPTIONS}
+                        />
                     </div>
 
                     <button
@@ -415,7 +414,7 @@ function Tasks() {
 
                                 <button
                                     className="small-button delete"
-                                    onClick={() => deleteTask(task)}
+                                    onClick={() => setDeletingTask(task)}
                                 >
                                     Delete
                                 </button>
@@ -427,6 +426,38 @@ function Tasks() {
                 )}
 
             </div>
+
+            <Modal
+                open={Boolean(deletingTask)}
+                onClose={() => setDeletingTask(null)}
+                labelledBy="delete-title"
+            >
+                <h2 id="delete-title" className="modal-title">
+                    Delete this task?
+                </h2>
+                <p className="modal-text">
+                    "{deletingTask?.title}" leaves your pool. You can undo
+                    right after.
+                </p>
+                <div className="modal-actions">
+                    <button
+                        className="secondary-button"
+                        onClick={() => setDeletingTask(null)}
+                    >
+                        Keep it
+                    </button>
+                    <button
+                        className="danger-button"
+                        onClick={() => {
+                            const task = deletingTask;
+                            setDeletingTask(null);
+                            deleteTask(task);
+                        }}
+                    >
+                        Delete
+                    </button>
+                </div>
+            </Modal>
         </div>
     );
 }

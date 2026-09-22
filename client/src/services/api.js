@@ -1,6 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
 const TOKEN_KEY = "shift_token";
+const USER_KEY = "shift_user";
 
 export function getToken() {
     return localStorage.getItem(TOKEN_KEY);
@@ -12,6 +13,21 @@ export function setToken(token) {
 
 export function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+}
+
+// Cached user lets the app render instantly on reload instead of blocking
+// on /auth/me (which stalls on a cold-start backend).
+export function getStoredUser() {
+    try {
+        return JSON.parse(localStorage.getItem(USER_KEY));
+    } catch {
+        return null;
+    }
+}
+
+export function setStoredUser(user) {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 // fetch wrapper that attaches the Bearer token and JSON headers.
