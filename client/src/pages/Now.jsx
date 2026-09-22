@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../services/api";
+import { startActiveAction } from "../services/activeAction";
 import ReadAnything from "../components/ReadAnything";
 
 function Now({ active = true }) {
@@ -11,11 +12,9 @@ function Now({ active = true }) {
     const [time, setTime] = useState("");
 
     const [sessionId, setSessionId] = useState("");
-    const [actionId, setActionId] = useState("");
     const [recommendation, setRecommendation] = useState(null);
 
     const [message, setMessage] = useState("");
-    const [showFeedback, setShowFeedback] = useState(false);
     const [loading, setLoading] = useState(false);
     const [noTasks, setNoTasks] = useState(false);
 
@@ -79,6 +78,9 @@ function Now({ active = true }) {
         }
     };
 
+    // Start the task, then hand off to the app-level focus lock. Persisting
+    // the action here is what freezes the whole app to complete/skip only —
+    // and keeps it frozen across reloads. See FocusLock + App.jsx.
     const startAction = async () => {
         try {
             const response = await apiFetch("/actions", {
@@ -95,105 +97,14 @@ function Now({ active = true }) {
                 throw new Error(data.error);
             }
 
-            setActionId(data._id);
-            setMessage("");
+            startActiveAction({
+                actionId: data._id,
+                task: recommendation
+            });
         } catch (error) {
             console.error(error);
             setMessage(error.message);
         }
-    };
-
-    const completeAction = async () => {
-        try {
-            const actionResponse = await apiFetch(
-                `/actions/${actionId}`,
-                {
-                    method: "PUT",
-                    body: JSON.stringify({
-                        status: "completed",
-                        completedAt: new Date()
-                    })
-                }
-            );
-
-            if (!actionResponse.ok) {
-                throw new Error("Failed to complete action.");
-            }
-
-            // Permanent tasks stay in the pool; completing one just bumps the tally.
-            await apiFetch(`/tasks/${recommendation._id}`, {
-                method: "PUT",
-                body: JSON.stringify(
-                    recommendation.type === "permanent"
-                        ? { incrementCompletion: true }
-                        : { status: "completed" }
-                )
-            });
-
-            setShowFeedback(true);
-            setMessage("");
-        } catch (error) {
-            console.error(error);
-            setMessage("Failed to complete action.");
-        }
-    };
-
-    const skipAction = async () => {
-        try {
-            const response = await apiFetch(
-                `/actions/${actionId}`,
-                {
-                    method: "PUT",
-                    body: JSON.stringify({
-                        status: "skipped"
-                    })
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error("Failed to skip action.");
-            }
-
-            setMessage("Skipped — no pressure. Try another move.");
-        } catch (error) {
-            console.error(error);
-            setMessage("Couldn't skip that one. Give it another go.");
-        }
-    };
-
-    const submitFeedback = async (feedback) => {
-        try {
-            const response = await apiFetch(
-                `/actions/${actionId}`,
-                {
-                    method: "PUT",
-                    body: JSON.stringify({
-                        feedback
-                    })
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error("Failed to save feedback");
-            }
-
-            setMessage("Locked in ⚡ See you at the next shift.");
-        } catch (error) {
-            console.error(error);
-            setMessage("Failed to save feedback.");
-        }
-    };
-
-    const resetShift = () => {
-        setMood("");
-        setEnergy("");
-        setTime("");
-        setSessionId("");
-        setActionId("");
-        setRecommendation(null);
-        setMessage("");
-        setShowFeedback(false);
-        setNoTasks(false);
     };
 
     return (
@@ -312,7 +223,7 @@ function Now({ active = true }) {
                 </section>
             )}
 
-            {recommendation && !actionId && (
+            {recommendation && (
                 <section className="recommendation-card">
 
                     <p className="eyebrow">✦ YOUR NEXT MOVE</p>
@@ -330,94 +241,6 @@ function Now({ active = true }) {
                         onClick={startAction}
                     >
                         LET'S GO ⚡
-                    </button>
-
-                </section>
-            )}
-
-            {recommendation && actionId && !showFeedback && (
-                <section className="recommendation-card">
-
-                    <p className="eyebrow">⏱ IN MOTION</p>
-
-                    <h1>{recommendation.title}</h1>
-
-                    <div className="action-buttons">
-                        <button
-                            className="complete-button"
-                            onClick={completeAction}
-                        >
-                            NAILED IT ✓
-                        </button>
-
-                        <button
-                            className="skip-button"
-                            onClick={skipAction}
-                        >
-                            NOT THIS
-                        </button>
-                    </div>
-
-                    {message && (
-                        <div>
-                            <p className="message">{message}</p>
-
-                            <button
-                                className="secondary-button"
-                                onClick={resetShift}
-                            >
-                                SHIFT AGAIN →
-                            </button>
-                        </div>
-                    )}
-
-                </section>
-            )}
-
-            {showFeedback && (
-                <section className="recommendation-card">
-
-                    <p className="eyebrow">✧ QUICK GUT CHECK</p>
-
-                    <h1>Did that shift something?</h1>
-
-                    <div className="feedback-buttons">
-                        <button
-                            className="fb-better"
-                            onClick={() =>
-                                submitFeedback("better")
-                            }
-                        >
-                            Better
-                        </button>
-
-                        <button
-                            onClick={() =>
-                                submitFeedback("same")
-                            }
-                        >
-                            Same
-                        </button>
-
-                        <button
-                            className="fb-worse"
-                            onClick={() =>
-                                submitFeedback("worse")
-                            }
-                        >
-                            Worse
-                        </button>
-                    </div>
-
-                    {message && (
-                        <p className="message">{message}</p>
-                    )}
-
-                    <button
-                        className="secondary-button"
-                        onClick={resetShift}
-                    >
-                        SHIFT AGAIN →
                     </button>
 
                 </section>

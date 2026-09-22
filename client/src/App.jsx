@@ -11,6 +11,8 @@ import {
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 import { useIsMobile } from "./hooks/useIsMobile";
+import { useActiveAction } from "./services/activeAction";
+import FocusLock from "./components/FocusLock";
 import Auth from "./pages/Auth";
 import Now from "./pages/Now";
 import Tasks from "./pages/Tasks";
@@ -22,6 +24,7 @@ import Modal from "./components/Modal";
 function AppShell() {
     const { user, loading, logout: rawLogout } = useAuth();
     const isMobile = useIsMobile();
+    const activeAction = useActiveAction();
 
     const [confirmingLogout, setConfirmingLogout] = useState(false);
     const logout = () => setConfirmingLogout(true);
@@ -39,6 +42,17 @@ function AppShell() {
             <div className="app">
                 <Auth />
             </div>
+        );
+    }
+
+    // A started task freezes the whole app: no nav, no other page mounts,
+    // only complete/skip — and it holds across reloads.
+    if (activeAction) {
+        return (
+            <FocusLock
+                actionId={activeAction.actionId}
+                task={activeAction.task}
+            />
         );
     }
 
