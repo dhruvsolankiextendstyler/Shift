@@ -145,7 +145,7 @@ function Heatmap({ counts, weeks = 17 }) {
     for (let i = days - 1; i >= 0; i--) {
         const d = new Date(end);
         d.setDate(end.getDate() - i);
-        const key = d.toISOString().slice(0, 10);
+        const key = dayKey(d);
         cells.push({ key, count: counts[key] || 0 });
     }
 
@@ -257,7 +257,12 @@ function LineChart({ points }) {
 
 /* ------------------------------ helpers ------------------------------ */
 
-const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
+const dayKey = (d) => {
+    const x = new Date(d);
+    const m = String(x.getMonth() + 1).padStart(2, "0");
+    const day = String(x.getDate()).padStart(2, "0");
+    return `${x.getFullYear()}-${m}-${day}`;
+};
 
 // Consecutive-day streak from a Set of YYYY-MM-DD strings.
 // Current streak counts back from today (grace: yesterday still counts).

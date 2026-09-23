@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { apiFetch } from "../services/api";
-import { clearActiveAction } from "../services/activeAction";
+import { clearActiveAction, suspendSync } from "../services/activeAction";
+import { reflectCompletionOnTask } from "../services/resolve";
 
 // The frozen screen. While a task is STARTED this is the ONLY thing the app
 // renders — no nav, no other page. Two moves out: complete or skip. Survives
 // reload because the active task lives in localStorage, not React state.
 function FocusLock({ actionId, task }) {
     const [showFeedback, setShowFeedback] = useState(false);
+    const [note, setNote] = useState("");
     const [message, setMessage] = useState("");
 
     // 404 = the action is gone server-side; releasing avoids a permanent trap.
@@ -22,24 +24,23 @@ function FocusLock({ actionId, task }) {
         return res;
     };
 
+    // Only send the note when there's something in it — an empty box
+    // shouldn't wipe a note added earlier.
+    const notePatch = () => (note.trim() ? { note: note.trim() } : {});
+
     const completeAction = async () => {
+        // Freeze the cross-device poll so it can't clear us mid-gut-check.
+        suspendSync();
         try {
             const res = await putAction({
                 status: "completed",
-                completedAt: new Date()
+                completedAt: new Date(),
+                ...notePatch()
             });
             if (!res) return;
             if (!res.ok) throw new Error("Failed to complete action.");
 
-            // Permanent tasks stay in the pool; completing one just bumps the tally.
-            await apiFetch(`/tasks/${task._id}`, {
-                method: "PUT",
-                body: JSON.stringify(
-                    task.type === "permanent"
-                        ? { incrementCompletion: true }
-                        : { status: "completed" }
-                )
-            });
+            await reflectCompletionOnTask(task);
 
             setShowFeedback(true);
             setMessage("");
@@ -50,8 +51,12 @@ function FocusLock({ actionId, task }) {
     };
 
     const skipAction = async () => {
+        suspendSync();
         try {
-            const res = await putAction({ status: "skipped" });
+            const res = await putAction({
+                status: "skipped",
+                ...notePatch()
+            });
             if (!res) return;
             if (!res.ok) throw new Error("Failed to skip action.");
             clearActiveAction();
@@ -97,6 +102,14 @@ function FocusLock({ actionId, task }) {
                                 NOT THIS
                             </button>
                         </div>
+
+                        <textarea
+                            className="note-input"
+                            placeholder="How'd it feel? Jot it down — just for you (optional)"
+                            value={note}
+                            maxLength={1000}
+                            onChange={(e) => setNote(e.target.value)}
+                        />
 
                         {message && <p className="message">{message}</p>}
                     </section>

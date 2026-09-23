@@ -33,6 +33,15 @@ const actionSchema = new mongoose.Schema(
             default: null
         },
 
+        // Free-text note the user jots about how the move felt. Never used
+        // for analysis/recommendation — just theirs to read back later.
+        note: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 1000
+        },
+
         startedAt: {
             type: Date,
             default: Date.now

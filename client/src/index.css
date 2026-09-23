@@ -1170,9 +1170,8 @@ select:focus-visible {
     border-radius: var(--radius-lg);
     padding: var(--space-4);
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 25px;
+    flex-direction: column;
+    gap: var(--space-3);
     transition: border-color var(--dur) var(--ease-out),
         transform var(--dur) var(--ease-out);
 }
@@ -1180,6 +1179,13 @@ select:focus-visible {
 .history-card:hover {
     border-color: var(--border-strong);
     transform: translateY(-2px);
+}
+
+.history-body {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 25px;
 }
 
 .history-top {
@@ -1255,6 +1261,80 @@ select:focus-visible {
 .no-feedback {
     color: #555e6b;
     font-size: var(--text-xs);
+}
+
+.status-badge.started {
+    color: var(--viz-blue, #6ea8fe);
+}
+
+/* Divider-topped extras below the main history row. */
+.history-resolve,
+.history-note {
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-3);
+}
+
+.history-resolve {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.history-note {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-3);
+}
+
+.history-note.editing {
+    flex-direction: column;
+}
+
+.note-text {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    white-space: pre-wrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.note-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.add-note {
+    align-self: flex-start;
+}
+
+/* Free-text note box — focus lock + history. */
+.note-input {
+    width: 100%;
+    min-height: 72px;
+    resize: vertical;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--space-3);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--text-sm);
+    transition: border-color var(--dur) var(--ease-out);
+}
+
+.note-input::placeholder {
+    color: var(--text-muted);
+}
+
+.note-input:focus {
+    outline: none;
+    border-color: var(--border-strong);
+}
+
+.recommendation-card .note-input {
+    margin-top: var(--space-3);
 }
 
 /* ============================================================
@@ -2286,9 +2366,10 @@ select:focus-visible {
         grid-template-columns: 1fr;
     }
 
-    .history-card {
+    .history-body {
         align-items: flex-start;
         flex-direction: column;
+        gap: var(--space-2);
     }
 
     .history-feedback {

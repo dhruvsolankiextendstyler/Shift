@@ -1,8 +1,12 @@
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 
 // Themed overlay: click-out + Escape to close, body scroll locked while open.
 // variant "sheet" fills the screen like a page (for the reader); default is a
 // centered dialog.
+// Portaled to <body> so its position:fixed backdrop is measured against the
+// viewport — not against a transformed ancestor like the mobile swipe
+// carousel, which otherwise drags the popup onto the wrong tab.
 function Modal({ open, onClose, children, labelledBy, variant = "dialog" }) {
     useEffect(() => {
         if (!open) return;
@@ -23,7 +27,7 @@ function Modal({ open, onClose, children, labelledBy, variant = "dialog" }) {
 
     if (!open) return null;
 
-    return (
+    return createPortal(
         <div
             className={`modal-backdrop modal-${variant}`}
             onClick={onClose}
@@ -37,7 +41,8 @@ function Modal({ open, onClose, children, labelledBy, variant = "dialog" }) {
             >
                 {children}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 

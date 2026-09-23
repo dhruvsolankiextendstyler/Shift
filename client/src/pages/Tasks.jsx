@@ -166,6 +166,12 @@ function Tasks() {
         return true;
     });
 
+    // Suggest categories you've already used so "CS"/"cs" don't fragment
+    // your Insights.
+    const categoryOptions = [
+        ...new Set(tasks.map((t) => t.category).filter(Boolean))
+    ].sort((a, b) => a.localeCompare(b));
+
     if (loading) {
         return <p className="message">Loading your pool...</p>;
     }
@@ -237,11 +243,18 @@ function Tasks() {
 
                             <input
                                 placeholder="e.g. CS"
+                                list="category-options"
                                 value={category}
                                 onChange={(e) =>
                                     setCategory(e.target.value)
                                 }
                             />
+
+                            <datalist id="category-options">
+                                {categoryOptions.map((c) => (
+                                    <option key={c} value={c} />
+                                ))}
+                            </datalist>
                         </div>
 
                         <div className="input-group">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     BrowserRouter,
     Routes,
@@ -11,7 +11,10 @@ import {
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 import { useIsMobile } from "./hooks/useIsMobile";
-import { useActiveAction } from "./services/activeAction";
+import {
+    useActiveAction,
+    startActionSync
+} from "./services/activeAction";
 import FocusLock from "./components/FocusLock";
 import Auth from "./pages/Auth";
 import Now from "./pages/Now";
@@ -28,6 +31,14 @@ function AppShell() {
 
     const [confirmingLogout, setConfirmingLogout] = useState(false);
     const logout = () => setConfirmingLogout(true);
+
+    // Mirror a started task across the user's devices: poll while logged in so
+    // a focus lock on one device shows on the others and releases everywhere
+    // once it's resolved.
+    useEffect(() => {
+        if (!user?._id) return;
+        return startActionSync();
+    }, [user?._id]);
 
     if (loading) {
         return (
