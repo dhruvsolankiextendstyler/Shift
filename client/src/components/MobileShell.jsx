@@ -45,33 +45,33 @@ function NavIcon({ section }) {
     };
     if (section === "now") {
         return (
-            <svg viewBox="0 0 24 24" aria-hidden="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="nav-ic nav-ic--now">
                 <path {...p} d="M13 2L4.5 13H11l-1 9 8.5-11H12l1-9z" />
             </svg>
         );
     }
     if (section === "tasks") {
         return (
-            <svg viewBox="0 0 24 24" aria-hidden="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="nav-ic nav-ic--tasks">
                 <path {...p} d="M9 6h11M9 12h11M9 18h11" />
-                <path {...p} d="M3.5 6l1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2" />
+                <path {...p} className="nav-ic-check" d="M3.5 6l1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2" />
             </svg>
         );
     }
     if (section === "history") {
         return (
-            <svg viewBox="0 0 24 24" aria-hidden="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="nav-ic nav-ic--history">
                 <path {...p} d="M3.5 12a8.5 8.5 0 1 0 2.8-6.3L3 8.5" />
                 <path {...p} d="M3 4v4.5h4.5" />
-                <path {...p} d="M12 8v4.3l3 1.7" />
+                <path {...p} className="nav-ic-hand" d="M12 8v4.3l3 1.7" />
             </svg>
         );
     }
     // insights
     return (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="nav-ic nav-ic--insights">
             <path {...p} d="M4 20h16" />
-            <path {...p} d="M6 20v-6M12 20V6M18 20v-9" />
+            <path {...p} className="nav-ic-bars" d="M6 20v-6M12 20V6M18 20v-9" />
         </svg>
     );
 }
@@ -271,7 +271,11 @@ function MobileShell({ user, logout }) {
                 </div>
             )}
 
-            <nav className="bottom-nav">
+            <nav
+                className="bottom-nav"
+                style={{ "--nav-active": mainIndex }}
+            >
+                <span className="nav-pill" aria-hidden="true" />
                 {MAIN.map((m, i) => (
                     <button
                         key={m.path}
