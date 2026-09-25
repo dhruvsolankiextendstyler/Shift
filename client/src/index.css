@@ -1337,6 +1337,14 @@ select:focus-visible {
     margin-top: var(--space-3);
 }
 
+/* "Not now" release under the focus lock — deliberately quiet, so finishing
+   stays the obvious path. */
+.focus-release {
+    display: block;
+    margin: var(--space-3) auto 0;
+    font-size: var(--text-sm);
+}
+
 /* ============================================================
    Insights
    ============================================================ */
@@ -2011,32 +2019,113 @@ select:focus-visible {
     width: 44px;
 }
 
-/* Hamburger → X */
-.hamburger {
-    width: 44px;
-    height: 44px;
+/* Header avatar → tap to log out */
+.mobile-avatar {
+    justify-self: end;
+    width: 36px;
+    height: 36px;
     display: flex;
-    flex-direction: column;
-    justify-content: center;
     align-items: center;
-    gap: 5px;
-    background: none;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--on-accent);
+    border: none;
+    font-weight: 700;
+    font-size: var(--text-md);
+    transition: transform var(--dur) var(--ease-spring);
+}
+
+.mobile-avatar:active {
+    transform: scale(0.92);
+}
+
+/* Account popover — name, email, log out */
+.mobile-profile {
+    position: relative;
+    justify-self: end;
+}
+
+.profile-scrim {
+    position: fixed;
+    inset: 0;
+    background: transparent;
     border: none;
     padding: 0;
+    z-index: 840;
 }
 
-.hamburger span {
-    display: block;
-    width: 22px;
-    height: 2px;
-    border-radius: 2px;
-    background: var(--text);
-    transition: transform var(--dur) var(--ease-out),
-        opacity var(--dur) var(--ease-out);
+.profile-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 850;
+    width: min(78vw, 260px);
+    background: var(--surface-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 24px 50px -18px rgba(0, 0, 0, 0.8);
+    padding: var(--space-3);
+    transform-origin: top right;
+    animation: pop-in var(--dur) var(--ease-spring) both;
 }
 
-.hamburger:active span {
+.profile-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--border);
+}
+
+.profile-avatar {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
     background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 700;
+    font-size: var(--text-md);
+}
+
+.profile-id {
+    min-width: 0;
+}
+
+.profile-name {
+    margin: 0;
+    font-weight: 700;
+}
+
+.profile-email {
+    margin: 2px 0 0;
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-logout {
+    width: 100%;
+    margin-top: var(--space-3);
+    padding: 11px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 600;
+    transition: border-color var(--dur) var(--ease-out),
+        background var(--dur) var(--ease-out);
+}
+
+.profile-logout:hover {
+    border-color: var(--border-hover);
+    background: var(--border);
 }
 
 /* Embla pager */
@@ -2069,25 +2158,58 @@ select:focus-visible {
     margin-bottom: var(--space-4);
 }
 
-/* Position dots */
-.pager-dots {
+/* Bottom navigation bar */
+.bottom-nav {
     flex-shrink: 0;
+    display: flex;
+    align-items: stretch;
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--surface);
+}
+
+.bottom-tab {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
-    padding: 10px 0 14px;
-    border-top: 1px solid var(--border);
+    justify-content: center;
+    gap: 3px;
+    padding: 9px 0 11px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    transition: color var(--dur) var(--ease-out),
+        transform var(--dur-fast) var(--ease-out);
 }
 
-.dots-main,
-.dots-sub {
+.bottom-tab svg {
+    width: 22px;
+    height: 22px;
+}
+
+.bottom-tab-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.bottom-tab.active {
+    color: var(--accent);
+}
+
+.bottom-tab:active {
+    transform: scale(0.9);
+}
+
+/* Insights sub-tab dots, above the bar */
+.sub-dots {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-}
-
-.dots-sub {
+    padding: 8px 0 2px;
     animation: fade-in var(--dur) var(--ease-out) both;
 }
 
@@ -2117,208 +2239,6 @@ select:focus-visible {
 .dot-sm.active {
     width: 16px;
     background: var(--text-muted);
-}
-
-/* ============================================================
-   Sidebar drawer
-   ============================================================ */
-
-.sidebar-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity var(--dur) var(--ease-out),
-        visibility var(--dur) var(--ease-out);
-    z-index: 900;
-}
-
-.sidebar-backdrop.open {
-    opacity: 1;
-    visibility: visible;
-}
-
-.sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: min(78vw, 320px);
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    padding: var(--space-4);
-    transform: translateX(-100%);
-    transition: transform var(--dur-slow) var(--ease-out);
-    z-index: 901;
-}
-
-.sidebar.open {
-    transform: translateX(0);
-    box-shadow: 24px 0 60px -20px rgba(0, 0, 0, 0.7);
-}
-
-.sidebar-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: var(--space-5);
-}
-
-.sidebar-logo {
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: 1px;
-}
-
-.sidebar-close {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 26px;
-    line-height: 1;
-    width: 32px;
-    height: 32px;
-    transition: color var(--dur) var(--ease-out);
-}
-
-.sidebar-close:hover {
-    color: var(--text);
-}
-
-.sidebar-user {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    margin-bottom: var(--space-5);
-}
-
-.sidebar-avatar {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: var(--accent);
-    color: var(--on-accent);
-    font-weight: 700;
-    font-size: var(--text-md);
-}
-
-.sidebar-name {
-    margin: 0;
-    font-weight: 700;
-}
-
-.sidebar-user-text {
-    min-width: 0;
-}
-
-.sidebar-role {
-    margin: 2px 0 0;
-    font-size: var(--text-xs);
-    color: var(--text-dim);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.sidebar-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
-}
-
-.sidebar-link {
-    position: relative;
-    text-align: left;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: var(--text-md);
-    padding: 14px 16px;
-    border-radius: var(--radius);
-    transition: background var(--dur) var(--ease-out),
-        color var(--dur) var(--ease-out),
-        transform var(--dur) var(--ease-out);
-    opacity: 0;
-    transform: translateX(-14px);
-}
-
-/* Stagger links in when the drawer opens */
-.sidebar.open .sidebar-link {
-    animation: sidebar-link-in var(--dur) var(--ease-out) forwards;
-    animation-delay: calc(0.08s + var(--i) * 0.05s);
-}
-
-@keyframes sidebar-link-in {
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.sidebar-link:hover {
-    background: var(--surface-raised);
-    color: var(--text);
-}
-
-.sidebar-link.active {
-    background: var(--surface-raised);
-    color: var(--text);
-}
-
-.sidebar-link.active::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 12px;
-    bottom: 12px;
-    width: 3px;
-    border-radius: 3px;
-    background: var(--accent);
-}
-
-.sidebar-foot {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    padding-top: var(--space-4);
-    border-top: 1px solid var(--border);
-}
-
-.sidebar-logout {
-    background: var(--surface-raised);
-    border: 1px solid var(--border-strong);
-    color: var(--text);
-    padding: 12px;
-    border-radius: var(--radius);
-    transition: border-color var(--dur) var(--ease-out),
-        background var(--dur) var(--ease-out);
-}
-
-.sidebar-logout:hover {
-    border-color: var(--border-hover);
-    background: var(--border);
-}
-
-.sidebar-credit {
-    color: var(--text-dim);
-    font-size: var(--text-sm);
-    text-align: center;
-    transition: color var(--dur) var(--ease-out);
-}
-
-.sidebar-credit:hover {
-    color: var(--text-muted);
 }
 
 /* ============================================================
@@ -2510,13 +2430,17 @@ select:focus-visible {
 }
 
 /* ============================================================
-   Read anything — floating button + full-screen reader sheet
+   Downtime tools — three-line FAB → Deep Read + Word Forge
    ============================================================ */
 
-.read-fab {
+.tools-dial {
     position: fixed;
     right: 18px;
-    bottom: 70px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    z-index: 800;
+}
+
+.tools-fab {
     width: 58px;
     height: 58px;
     border-radius: 50%;
@@ -2524,9 +2448,10 @@ select:focus-visible {
     background: var(--accent);
     color: var(--on-accent);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    z-index: 800;
+    gap: 5px;
     box-shadow: 0 14px 30px -10px rgba(0, 0, 0, 0.7);
     animation: fade-up var(--dur) var(--ease-out) both,
         glow-breathe 4s var(--ease-in-out) infinite;
@@ -2534,72 +2459,93 @@ select:focus-visible {
         background var(--dur) var(--ease-out);
 }
 
-.read-fab svg {
-    width: 26px;
-    height: 26px;
-    overflow: visible;
-    perspective: 120px;
+.tools-fab span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+    transition: transform var(--dur) var(--ease-out),
+        opacity var(--dur) var(--ease-out);
 }
 
-/* Pages hinge at the spine; rest state is an open book. */
-.book-page {
-    transform-box: fill-box;
+.tools-fab.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.tools-fab.open span:nth-child(2) { opacity: 0; }
+.tools-fab.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+.tools-fab:hover { background: var(--accent-hover); transform: translateY(-3px) scale(1.06); }
+.tools-fab:active { transform: translateY(0) scale(0.94); transition-duration: var(--dur-fast); }
+
+.tools-options {
+    position: absolute;
+    right: 4px;
+    bottom: calc(100% + 12px);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
 }
 
-.book-left {
-    transform-origin: right center;
+.tools-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 9px 7px 16px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface-raised);
+    color: var(--text);
+    box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.7);
+    opacity: 0;
+    transform: translateY(12px) scale(0.9);
+    pointer-events: none;
+    transition: opacity var(--dur) var(--ease-out),
+        transform var(--dur) var(--ease-spring);
 }
 
-.book-right {
-    transform-origin: left center;
+.tools-options.open .tools-option {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+    transition-delay: calc(var(--i) * 0.06s);
 }
 
-/* Hover / focus / tap replays the book swinging open. */
-.read-fab:hover .book-left,
-.read-fab:focus-visible .book-left,
-.read-fab:active .book-left {
-    animation: book-open-left 1.2s var(--ease-out);
+.tools-option-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    white-space: nowrap;
 }
 
-.read-fab:hover .book-right,
-.read-fab:focus-visible .book-right,
-.read-fab:active .book-right {
-    animation: book-open-right 1.2s var(--ease-out);
+.tools-option-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--on-accent);
 }
 
-@keyframes book-open-left {
-    from {
-        transform: rotateY(-78deg);
-    }
-    to {
-        transform: rotateY(0);
-    }
+.tools-option-icon svg {
+    width: 18px;
+    height: 18px;
 }
 
-@keyframes book-open-right {
-    from {
-        transform: rotateY(78deg);
-    }
-    to {
-        transform: rotateY(0);
-    }
+.tools-scrim {
+    position: fixed;
+    inset: 0;
+    background: transparent;
+    border: none;
+    padding: 0;
+    z-index: 790;
 }
 
-.read-fab:hover {
-    background: var(--accent-hover);
-    transform: translateY(-3px) scale(1.06);
-}
-
-.read-fab:active {
-    transform: translateY(0) scale(0.94);
-    transition-duration: var(--dur-fast);
-}
-
-/* Desktop has no bottom pager, so sit lower */
-@media (min-width: 701px) {
-    .read-fab {
-        bottom: 30px;
+@media (min-width: 761px) {
+    .tools-dial {
         right: 30px;
+        bottom: 30px;
     }
 }
 
@@ -2764,6 +2710,78 @@ select:focus-visible {
 
 .read-actions .secondary-button,
 .read-actions .shift-button {
+    flex: 1;
+    margin: 0;
+    min-height: 0;
+}
+
+/* ============================================================
+   Word Forge — vocab card
+   ============================================================ */
+
+.vocab-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.vocab-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.vocab-body {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.vocab-word {
+    margin: var(--space-2) 0 0;
+    font-size: clamp(28px, 8vw, 40px);
+    line-height: 1.1;
+    text-transform: lowercase;
+}
+
+.vocab-phonetic {
+    margin: 4px 0 0;
+    color: var(--text-dim);
+    font-size: var(--text-md);
+}
+
+.vocab-meaning {
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border);
+}
+
+.vocab-pos {
+    display: inline-block;
+    margin-bottom: 6px;
+    font-size: var(--text-xs);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+.vocab-def {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.vocab-example {
+    margin: 8px 0 0;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.vocab-actions {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.vocab-actions .secondary-button,
+.vocab-actions .shift-button {
     flex: 1;
     margin: 0;
     min-height: 0;

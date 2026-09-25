@@ -5,6 +5,9 @@ import { apiFetch } from "./api";
 // reload and locks the whole app (no nav, only complete/skip) until it's
 // resolved. Read at the app root — see FocusLock + App.jsx.
 const KEY = "shift_active_action";
+// "Not now" on this device: the actionId the user released so the poll won't
+// re-lock this same started task. Per-device (localStorage), on purpose.
+const DISMISS_KEY = "shift_dismissed_action";
 
 const listeners = new Set();
 let cache = read();
@@ -32,6 +35,7 @@ window.addEventListener("storage", emit);
 // { actionId, task }
 export function startActiveAction(action) {
     syncSuspended = false;
+    localStorage.removeItem(DISMISS_KEY);
     localStorage.setItem(KEY, JSON.stringify(action));
     emit();
 }
@@ -48,6 +52,20 @@ export function suspendSync() {
     syncSuspended = true;
 }
 
+// Undo suspendSync — call this if a complete/skip fails, so the poll doesn't
+// stay frozen for the rest of the session.
+export function resumeSync() {
+    syncSuspended = false;
+}
+
+// "Not now" — drop the lock on this device without resolving the task. The
+// action stays "started" server-side (so it still shows in History to finish
+// later), and the poll won't re-lock this device with the same task.
+export function dismissActiveAction(actionId) {
+    if (actionId) localStorage.setItem(DISMISS_KEY, actionId);
+    clearActiveAction();
+}
+
 // Poll the server so a focus lock started on one device mirrors onto the
 // user's other devices, and releases everywhere once it's resolved.
 // ponytail: 8s poll (chatty but simple) — upgrade to websockets/SSE only if
@@ -56,7 +74,8 @@ export function startActionSync() {
     let stopped = false;
 
     const tick = async () => {
-        if (stopped || syncSuspended) return;
+        // Skip while hidden — a backgrounded tab has nothing to update.
+        if (stopped || syncSuspended || document.hidden) return;
         const local = read();
 
         try {
@@ -72,13 +91,15 @@ export function startActionSync() {
                     if (a && a.status !== "started") clearActiveAction();
                 }
             } else {
-                // Free — pick up a lock another device just started.
+                // Free — pick up a lock another device just started, unless
+                // this device already said "not now" to it.
                 const res = await apiFetch("/actions/live");
                 if (stopped || syncSuspended) return;
                 if (res.ok) {
                     const a = await res.json();
                     if (stopped || syncSuspended || read()) return;
-                    if (a && a.taskId) {
+                    const dismissed = localStorage.getItem(DISMISS_KEY);
+                    if (a && a.taskId && a._id !== dismissed) {
                         startActiveAction({
                             actionId: a._id,
                             task: a.taskId
@@ -92,11 +113,17 @@ export function startActionSync() {
     };
 
     const id = setInterval(tick, 8000);
+    // Catch up the moment the tab comes back to the foreground.
+    const onVisible = () => {
+        if (!document.hidden) tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     tick();
 
     return () => {
         stopped = true;
         clearInterval(id);
+        document.removeEventListener("visibilitychange", onVisible);
     };
 }
 

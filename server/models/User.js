@@ -21,6 +21,18 @@ const userSchema = new mongoose.Schema(
             type: String,
             required: true,
             minlength: 6
+        },
+
+        // Downtime engagement — bumped when the user hits "Done" in Deep Read
+        // / Word Forge (see activityRoutes). Surfaced in Insights.
+        readCount: {
+            type: Number,
+            default: 0
+        },
+
+        vocabCount: {
+            type: Number,
+            default: 0
         }
     },
     {

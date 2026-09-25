@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { apiFetch } from "../services/api";
-import { clearActiveAction, suspendSync } from "../services/activeAction";
+import {
+    clearActiveAction,
+    suspendSync,
+    resumeSync,
+    dismissActiveAction
+} from "../services/activeAction";
 import { reflectCompletionOnTask } from "../services/resolve";
 
 // The frozen screen. While a task is STARTED this is the ONLY thing the app
@@ -46,6 +51,8 @@ function FocusLock({ actionId, task }) {
             setMessage("");
         } catch (error) {
             console.error(error);
+            // Unfreeze the poll — the resolve didn't land, so this lock is live.
+            resumeSync();
             setMessage("Failed to complete action.");
         }
     };
@@ -62,6 +69,7 @@ function FocusLock({ actionId, task }) {
             clearActiveAction();
         } catch (error) {
             console.error(error);
+            resumeSync();
             setMessage("Couldn't skip that one. Give it another go.");
         }
     };
@@ -110,6 +118,13 @@ function FocusLock({ actionId, task }) {
                             maxLength={1000}
                             onChange={(e) => setNote(e.target.value)}
                         />
+
+                        <button
+                            className="text-button focus-release"
+                            onClick={() => dismissActiveAction(actionId)}
+                        >
+                            Not now — I'll finish later
+                        </button>
 
                         {message && <p className="message">{message}</p>}
                     </section>

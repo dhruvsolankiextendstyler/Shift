@@ -38,6 +38,7 @@ const taskRoutes = require("./routes/taskRoutes");
 const sessionRoutes = require("./routes/sessionRoutes");
 const recommendationRoutes = require("./routes/recommendationRoutes");
 const actionRoutes = require("./routes/actionRoutes");
+const activityRoutes = require("./routes/activityRoutes");
 const authMiddleware = require("./middleware/authMiddleware");
 
 app.use("/api/auth", authRoutes);
@@ -48,6 +49,7 @@ app.use("/api/tasks", authMiddleware, taskRoutes);
 app.use("/api/sessions", authMiddleware, sessionRoutes);
 app.use("/api/recommendation", authMiddleware, recommendationRoutes);
 app.use("/api/actions", authMiddleware, actionRoutes);
+app.use("/api/activity", authMiddleware, activityRoutes);
 
 app.get("/", (req, res) => {
     res.json({

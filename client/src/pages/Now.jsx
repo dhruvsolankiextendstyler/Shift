@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../services/api";
 import { startActiveAction } from "../services/activeAction";
-import ReadAnything from "../components/ReadAnything";
+import ToolsMenu from "../components/ToolsMenu";
 
 function Now({ active = true }) {
     const navigate = useNavigate();
@@ -246,7 +246,7 @@ function Now({ active = true }) {
                 </section>
             )}
 
-            <ReadAnything active={active} />
+            <ToolsMenu active={active} />
         </div>
     );
 }

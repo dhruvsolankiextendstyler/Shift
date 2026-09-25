@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Modal from "./Modal";
+import { logActivity } from "../services/activity";
 
 // Curated reading pool — Indian Army leaders, regiments, operations, weapons,
 // and future/AI warfare. Each entry must resolve on en.wikipedia.org (used as
@@ -146,11 +147,10 @@ function parseExtract(text) {
     return blocks;
 }
 
-// Floating "Read anything" button → pulls a random topic into a full-screen
-// in-app reader. `active` gates rendering so the fixed button doesn't bleed
-// onto other mobile slides (all slides are mounted at once).
-function ReadAnything({ active = true }) {
-    const [open, setOpen] = useState(false);
+// Full-screen in-app reader — pulls a random topic from the pool. Controlled
+// by the parent (ToolsMenu owns open/close); mounted alongside its sibling
+// tools so all slides can share one downtime FAB.
+function ReadAnything({ open, onClose }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [article, setArticle] = useState(null);
@@ -210,52 +210,23 @@ function ReadAnything({ active = true }) {
         if (open && !article && !loading && !error) load(null);
     }, [open, article, loading, error, load]);
 
-    if (!active) return null;
-
     return (
         <>
-            <button
-                className="read-fab"
-                aria-label="Read anything"
-                onClick={() => setOpen(true)}
-            >
-                <svg
-                    className="book-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                >
-                    <path
-                        className="book-page book-left"
-                        d="M12 6.5C10.5 5 8 4.5 4 5v13c4-.5 6.5 0 8 1.5"
-                    />
-                    <path
-                        className="book-page book-right"
-                        d="M12 6.5C13.5 5 16 4.5 20 5v13c-4-.5-6.5 0-8 1.5"
-                    />
-                    <path className="book-spine" d="M12 6.5v13" />
-                </svg>
-            </button>
-
             <Modal
                 open={open}
-                onClose={() => setOpen(false)}
+                onClose={onClose}
                 labelledBy="read-title"
                 variant="sheet"
             >
                 <div className="read-sheet">
                     <div className="read-topbar">
                         <p className="eyebrow read-eyebrow">
-                            ✦ READ ANYTHING
+                            ✦ DEEP READ
                         </p>
                         <button
                             className="read-close"
                             aria-label="Close reader"
-                            onClick={() => setOpen(false)}
+                            onClick={onClose}
                         >
                             ×
                         </button>
@@ -332,7 +303,10 @@ function ReadAnything({ active = true }) {
                     <div className="read-actions">
                         <button
                             className="secondary-button"
-                            onClick={() => setOpen(false)}
+                            onClick={() => {
+                                logActivity("read");
+                                onClose();
+                            }}
                         >
                             Done
                         </button>

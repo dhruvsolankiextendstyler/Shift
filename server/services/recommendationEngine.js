@@ -113,7 +113,16 @@ function recommendTask(
         return null;
     }
 
-    const scoredTasks = tasks.map((task) => ({
+    // Available time is a hard limit, not a soft nudge: never hand back a task
+    // that can't finish in the window the user says they have (15 min chosen
+    // must not surface a 30 min task). Only fall back to the full pool if
+    // literally nothing fits, so the user still gets their closest option.
+    const fitting = tasks.filter(
+        (task) => task.estimatedTime <= session.availableTime
+    );
+    const pool = fitting.length ? fitting : tasks;
+
+    const scoredTasks = pool.map((task) => ({
         task,
         score: getRecommendationScore(
             task,

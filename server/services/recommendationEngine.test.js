@@ -229,6 +229,43 @@ test("a skip is treated differently from a completed+worse", () => {
     assert.notEqual(skipScore, worseScore);
 });
 
+// ---- Regression: available time is a hard limit -----------------------
+// User reported: chose 15 min, got a 30 min task. A task that can't finish
+// in the window must never win, even a high-priority one, as long as
+// something that DOES fit exists.
+
+test("15 min available never surfaces a 30 min task when one fits", () => {
+    const fits = makeTask({
+        estimatedTime: 15,
+        priority: "low",
+        title: "Fits the window"
+    });
+    const overflows = makeTask({
+        estimatedTime: 30,
+        priority: "high",
+        title: "Overflows the window"
+    });
+
+    const picked = recommendTask(
+        [overflows, fits],
+        session("good", "high", 15)
+    );
+
+    assert.equal(picked.title, "Fits the window");
+});
+
+// If NOTHING fits, still return the closest option rather than nothing.
+test("falls back to an overflow task only when none fit", () => {
+    const long = makeTask({ estimatedTime: 45, title: "The only option" });
+
+    const picked = recommendTask(
+        [long],
+        session("okay", "medium", 15)
+    );
+
+    assert.equal(picked.title, "The only option");
+});
+
 // ---- Edge case: empty task pool ----------------------------------------
 
 test("no tasks returns null", () => {

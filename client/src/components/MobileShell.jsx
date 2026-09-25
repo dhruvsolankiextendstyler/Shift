@@ -12,7 +12,6 @@ import {
     INSIGHTS_TABS
 } from "../pages/Insights";
 import ErrorState from "./ErrorState";
-import Sidebar from "./Sidebar";
 
 // Flat swipe sequence: the 3 main sections, then Insights fanned out
 // into its 4 sub-tabs — so swiping carries straight through (nested).
@@ -29,11 +28,53 @@ const VIEWS = [
 ];
 
 const MAIN = [
-    { path: "/", label: "Now" },
-    { path: "/tasks", label: "Tasks" },
-    { path: "/history", label: "History" },
-    { path: "/insights", label: "Insights" }
+    { path: "/", label: "Now", section: "now" },
+    { path: "/tasks", label: "Tasks", section: "tasks" },
+    { path: "/history", label: "History", section: "history" },
+    { path: "/insights", label: "Insights", section: "insights" }
 ];
+
+// Bottom-nav glyphs — line icons matching the app's style.
+function NavIcon({ section }) {
+    const p = {
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: 1.8,
+        strokeLinecap: "round",
+        strokeLinejoin: "round"
+    };
+    if (section === "now") {
+        return (
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path {...p} d="M13 2L4.5 13H11l-1 9 8.5-11H12l1-9z" />
+            </svg>
+        );
+    }
+    if (section === "tasks") {
+        return (
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path {...p} d="M9 6h11M9 12h11M9 18h11" />
+                <path {...p} d="M3.5 6l1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2" />
+            </svg>
+        );
+    }
+    if (section === "history") {
+        return (
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path {...p} d="M3.5 12a8.5 8.5 0 1 0 2.8-6.3L3 8.5" />
+                <path {...p} d="M3 4v4.5h4.5" />
+                <path {...p} d="M12 8v4.3l3 1.7" />
+            </svg>
+        );
+    }
+    // insights
+    return (
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path {...p} d="M4 20h16" />
+            <path {...p} d="M6 20v-6M12 20V6M18 20v-9" />
+        </svg>
+    );
+}
 
 function MobileShell({ user, logout }) {
     const location = useLocation();
@@ -44,7 +85,6 @@ function MobileShell({ user, logout }) {
         pathRef.current = location.pathname;
     }, [location.pathname]);
 
-    const [menuOpen, setMenuOpen] = useState(false);
     // Start on whatever section the URL points at (deep link / refresh).
     const initialIndexRef = useRef(
         Math.max(
@@ -53,6 +93,7 @@ function MobileShell({ user, logout }) {
         )
     );
     const [selected, setSelected] = useState(initialIndexRef.current);
+    const [profileOpen, setProfileOpen] = useState(false);
 
     const [emblaRef, emblaApi] = useEmblaCarousel({
         loop: false,
@@ -87,11 +128,16 @@ function MobileShell({ user, logout }) {
         const target = VIEWS.findIndex(
             (v) => v.path === location.pathname
         );
-        if (target >= 0) emblaApi.scrollTo(target);
+        // jump=true: land on the target instantly instead of animating through
+        // every slide in between — that mid-scroll churn is what froze the app
+        // when tapping a far tab (e.g. Now → History).
+        if (target >= 0) emblaApi.scrollTo(target, true);
     }, [location.pathname, emblaApi]);
 
+    // Tabs jump straight to their slide (jump=true) — no animated churn through
+    // the slides in between. Swiping still animates normally.
     const goTo = useCallback(
-        (index) => emblaApi && emblaApi.scrollTo(index),
+        (index) => emblaApi && emblaApi.scrollTo(index, true),
         [emblaApi]
     );
 
@@ -134,31 +180,63 @@ function MobileShell({ user, logout }) {
     return (
         <div className="mobile-shell">
             <header className="mobile-header">
-                <button
-                    className={`hamburger ${menuOpen ? "open" : ""}`}
-                    aria-label="Open menu"
-                    onClick={() => setMenuOpen(true)}
-                >
-                    <span />
-                    <span />
-                    <span />
-                </button>
+                <span className="mobile-header-spacer" />
 
                 <span className="mobile-logo">
                     SHIFT <span>⚡</span>
                 </span>
 
-                <span className="mobile-header-spacer" />
-            </header>
+                <div className="mobile-profile">
+                    <button
+                        className="mobile-avatar"
+                        aria-label="Account"
+                        aria-haspopup="true"
+                        aria-expanded={profileOpen}
+                        onClick={() => setProfileOpen((o) => !o)}
+                    >
+                        {(user?.name || "?").charAt(0).toUpperCase()}
+                    </button>
 
-            <Sidebar
-                open={menuOpen}
-                onClose={() => setMenuOpen(false)}
-                user={user}
-                activePath={current.path}
-                onNavigate={(path) => navigate(path)}
-                onLogout={logout}
-            />
+                    {profileOpen && (
+                        <>
+                            <button
+                                className="profile-scrim"
+                                aria-label="Close account menu"
+                                onClick={() => setProfileOpen(false)}
+                            />
+                            <div className="profile-menu" role="menu">
+                                <div className="profile-head">
+                                    <span className="profile-avatar">
+                                        {(user?.name || "?")
+                                            .charAt(0)
+                                            .toUpperCase()}
+                                    </span>
+                                    <div className="profile-id">
+                                        <p className="profile-name">
+                                            {user?.name}
+                                        </p>
+                                        <p
+                                            className="profile-email"
+                                            title={user?.email}
+                                        >
+                                            {user?.email}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    className="profile-logout"
+                                    onClick={() => {
+                                        setProfileOpen(false);
+                                        logout();
+                                    }}
+                                >
+                                    Log out
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </header>
 
             <div className="embla" ref={emblaRef}>
                 <div className="embla__container">
@@ -179,32 +257,36 @@ function MobileShell({ user, logout }) {
                 </div>
             </div>
 
-            {/* Position indicator */}
-            <div className="pager-dots">
-                <div className="dots-main">
-                    {MAIN.map((m, i) => (
+            {/* Sub-tab position — only while inside Insights */}
+            {inInsights && (
+                <div className="sub-dots">
+                    {INSIGHTS_TABS.map((t, i) => (
                         <button
-                            key={m.path}
-                            aria-label={m.label}
-                            className={`dot ${mainIndex === i ? "active" : ""}`}
-                            onClick={() => goTo(i < 3 ? i : 3)}
+                            key={t.id}
+                            aria-label={t.label}
+                            className={`dot dot-sm ${subIndex === i ? "active" : ""}`}
+                            onClick={() => goTo(3 + i)}
                         />
                     ))}
                 </div>
+            )}
 
-                {inInsights && (
-                    <div className="dots-sub">
-                        {INSIGHTS_TABS.map((t, i) => (
-                            <button
-                                key={t.id}
-                                aria-label={t.label}
-                                className={`dot dot-sm ${subIndex === i ? "active" : ""}`}
-                                onClick={() => goTo(3 + i)}
-                            />
-                        ))}
-                    </div>
-                )}
-            </div>
+            <nav className="bottom-nav">
+                {MAIN.map((m, i) => (
+                    <button
+                        key={m.path}
+                        className={`bottom-tab ${mainIndex === i ? "active" : ""}`}
+                        aria-label={m.label}
+                        aria-current={mainIndex === i ? "page" : undefined}
+                        onClick={() => goTo(i < 3 ? i : 3)}
+                    >
+                        <NavIcon section={m.section} />
+                        <span className="bottom-tab-label">
+                            {m.label}
+                        </span>
+                    </button>
+                ))}
+            </nav>
         </div>
     );
 }

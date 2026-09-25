@@ -320,6 +320,7 @@ export const INSIGHTS_TABS = [
 export function useInsightsData() {
     const [actions, setActions] = useState([]);
     const [tasks, setTasks] = useState([]);
+    const [activity, setActivity] = useState({ readCount: 0, vocabCount: 0 });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
 
@@ -327,15 +328,21 @@ export function useInsightsData() {
         setLoading(true);
         setError(false);
         try {
-            const [actionsRes, tasksRes] = await Promise.all([
+            const [actionsRes, tasksRes, activityRes] = await Promise.all([
                 apiFetch("/actions"),
-                apiFetch("/tasks")
+                apiFetch("/tasks"),
+                apiFetch("/activity")
             ]);
             if (!actionsRes.ok || !tasksRes.ok) {
                 throw new Error("Request failed");
             }
             setActions(await actionsRes.json());
             setTasks(await tasksRes.json());
+            // Downtime counts are a nice-to-have — don't fail insights if the
+            // endpoint hiccups.
+            if (activityRes.ok) {
+                setActivity(await activityRes.json());
+            }
         } catch (err) {
             console.error("Failed to load insights:", err);
             setError(true);
@@ -495,11 +502,17 @@ export function useInsightsData() {
             moodItems,
             categoryStreaks,
             overallStreak,
-            trendPoints
+            trendPoints,
+            readCount: activity.readCount || 0,
+            vocabCount: activity.vocabCount || 0
         };
-    }, [actions, tasks]);
+    }, [actions, tasks, activity]);
 
-    const isEmpty = d.total === 0 && d.permanentLogged === 0;
+    const isEmpty =
+        d.total === 0 &&
+        d.permanentLogged === 0 &&
+        d.readCount === 0 &&
+        d.vocabCount === 0;
 
     return { loading, error, reload: load, d, isEmpty };
 }
@@ -583,6 +596,29 @@ export function InsightsTabContent({ d, tab }) {
                         <BarList items={d.categories} />
                     </section>
                 )}
+
+                <section className="insight-card wide">
+                    <p className="eyebrow">☕ DOWNTIME</p>
+                    <h2>Between the moves</h2>
+                    <p className="chart-sub">
+                        Reading and vocab sessions you finished — every
+                        time you hit Done in Deep Read or Word Forge.
+                    </p>
+                    {d.readCount + d.vocabCount > 0 ? (
+                        <BarList
+                            items={[
+                                { label: "Deep Read", value: d.readCount },
+                                { label: "Word Forge", value: d.vocabCount }
+                            ]}
+                            unit="×"
+                        />
+                    ) : (
+                        <p className="chart-empty">
+                            No downtime sessions yet — open the tools
+                            button and hit Done to log one.
+                        </p>
+                    )}
+                </section>
 
                 <section className="insight-card wide">
                     <p className="eyebrow">MOMENTUM</p>

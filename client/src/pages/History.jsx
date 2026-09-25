@@ -9,6 +9,7 @@ function History() {
     const [error, setError] = useState(false);
 
     const [busyId, setBusyId] = useState(null);
+    const [feedbackForId, setFeedbackForId] = useState(null);
     const [editingNoteId, setEditingNoteId] = useState(null);
     const [noteDraft, setNoteDraft] = useState("");
 
@@ -48,6 +49,25 @@ function History() {
             if (status === "completed" && action.taskId) {
                 await reflectCompletionOnTask(action.taskId);
             }
+            await fetchHistory();
+            // Same gut-check the focus lock asks after finishing.
+            if (status === "completed") setFeedbackForId(action._id);
+        } catch {
+            setError(true);
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    const submitFeedback = async (action, feedback) => {
+        setBusyId(action._id);
+        try {
+            const res = await apiFetch(`/actions/${action._id}`, {
+                method: "PUT",
+                body: JSON.stringify({ feedback })
+            });
+            if (!res.ok) throw new Error();
+            setFeedbackForId(null);
             await fetchHistory();
         } catch {
             setError(true);
@@ -192,6 +212,42 @@ function History() {
                                         }
                                     >
                                         Skip
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Gut-check after marking a hanging move done. */}
+                            {feedbackForId === action._id && (
+                                <div className="history-resolve">
+                                    <span className="feedback-label">
+                                        Did that shift something?
+                                    </span>
+                                    <button
+                                        className="small-button"
+                                        disabled={busyId === action._id}
+                                        onClick={() =>
+                                            submitFeedback(action, "better")
+                                        }
+                                    >
+                                        Better
+                                    </button>
+                                    <button
+                                        className="small-button"
+                                        disabled={busyId === action._id}
+                                        onClick={() =>
+                                            submitFeedback(action, "same")
+                                        }
+                                    >
+                                        Same
+                                    </button>
+                                    <button
+                                        className="small-button"
+                                        disabled={busyId === action._id}
+                                        onClick={() =>
+                                            submitFeedback(action, "worse")
+                                        }
+                                    >
+                                        Worse
                                     </button>
                                 </div>
                             )}
