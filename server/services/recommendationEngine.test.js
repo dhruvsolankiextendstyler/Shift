@@ -254,16 +254,19 @@ test("15 min available never surfaces a 30 min task when one fits", () => {
     assert.equal(picked.title, "Fits the window");
 });
 
-// If NOTHING fits, still return the closest option rather than nothing.
-test("falls back to an overflow task only when none fit", () => {
-    const long = makeTask({ estimatedTime: 45, title: "The only option" });
+// If NOTHING fits the window, refuse rather than hand back an over-long task.
+// The user reported the opposite: choosing 15 min must never yield a 30 (or 45)
+// min task, even when nothing shorter exists. The route turns this null into a
+// clear "nothing fits your window" message.
+test("returns null when nothing fits the window", () => {
+    const long = makeTask({ estimatedTime: 45, title: "Too long" });
 
     const picked = recommendTask(
         [long],
         session("okay", "medium", 15)
     );
 
-    assert.equal(picked.title, "The only option");
+    assert.equal(picked, null);
 });
 
 // ---- Edge case: empty task pool ----------------------------------------

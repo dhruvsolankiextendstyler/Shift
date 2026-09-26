@@ -80,6 +80,8 @@ function MobileShell({ user, logout }) {
     const location = useLocation();
     const navigate = useNavigate();
     const pathRef = useRef(location.pathname);
+    const navRef = useRef(null);
+    const profileRef = useRef(null);
 
     useEffect(() => {
         pathRef.current = location.pathname;
@@ -141,6 +143,171 @@ function MobileShell({ user, logout }) {
         [emblaApi]
     );
 
+    // Bottom-nav pill motion, ported from the reference bar (see the vendored
+    // liquid_glass_widgets / AttendEase root_screen.dart): one pill that is the
+    // single source of truth for its position, tracks the swipe frame-for-frame,
+    // and does the "jelly" stretch — elongating along its travel and contracting
+    // on arrival. Driven straight to the DOM through navRef on a spring, never
+    // through React state, so a swipe rebuilds nothing above the bar.
+    useEffect(() => {
+        const nav = navRef.current;
+        if (!emblaApi || !nav) return;
+        if (
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ) {
+            return; // fall back to the discrete --nav-active CSS glide
+        }
+
+        const tabCount = MAIN.length; // pill lives in 0..tabCount-1 space
+
+        // Continuous slide position folded onto the main tabs: the 4 Insights
+        // sub-slides all collapse onto the Insights tab, matching mainIndex.
+        const liveMain = () => {
+            const snaps = emblaApi.scrollSnapList().length || 1;
+            const p = Math.min(Math.max(emblaApi.scrollProgress(), 0), 1);
+            return Math.min(p * (snaps - 1), tabCount - 1);
+        };
+
+        let pos = liveMain();
+        let vel = 0;
+        let target = pos;
+        let following = false; // a drag / its momentum owns the position
+        let raf = 0;
+        let last = 0;
+
+        nav.dataset.live = "1"; // CSS drops its fallback transition here
+
+        const write = () => {
+            const stretch = 1 + Math.min(Math.abs(vel) * 0.5, 0.38);
+            nav.style.setProperty("--nav-pos", pos.toFixed(4));
+            nav.style.setProperty("--nav-stretch", stretch.toFixed(3));
+            nav.style.setProperty(
+                "--nav-squash",
+                (1 - (stretch - 1) * 0.6).toFixed(3)
+            );
+        };
+
+        const frame = (t) => {
+            const dt = last ? Math.min((t - last) / 1000, 0.032) : 0.016;
+            last = t;
+            if (following) {
+                const live = liveMain();
+                vel = (live - pos) / dt; // tab-units per second
+                pos = live; // follow the finger 1:1
+                target = live;
+            } else {
+                // ~critically-damped spring → 350ms-ish emphasized settle
+                const accel = (target - pos) * 170 - vel * 26;
+                vel += accel * dt;
+                pos += vel * dt;
+                if (
+                    Math.abs(target - pos) < 0.002 &&
+                    Math.abs(vel) < 0.02
+                ) {
+                    pos = target;
+                    vel = 0;
+                }
+            }
+            write();
+            const moving =
+                following ||
+                Math.abs(target - pos) > 0.001 ||
+                Math.abs(vel) > 0.01;
+            if (moving) {
+                raf = requestAnimationFrame(frame);
+            } else {
+                raf = 0;
+                last = 0;
+            }
+        };
+
+        const kick = () => {
+            if (!raf) {
+                last = 0;
+                raf = requestAnimationFrame(frame);
+            }
+        };
+
+        // rAF is paused while the tab is hidden, so a navigation that lands
+        // off-screen would leave the pill parked wrong until something ticks.
+        // When hidden, snap straight to the target (no one sees the travel);
+        // when visible, run the spring.
+        const advance = () => {
+            if (document.hidden) {
+                pos = target;
+                vel = 0;
+                write();
+            } else {
+                kick();
+            }
+        };
+
+        const onScroll = () => following && kick();
+        const onDown = () => {
+            following = true;
+            kick();
+        };
+        const settleTarget = () => {
+            following = false;
+            target = Math.min(emblaApi.selectedScrollSnap(), tabCount - 1);
+            advance();
+        };
+        const onSelect = () => {
+            target = Math.min(emblaApi.selectedScrollSnap(), tabCount - 1);
+            advance();
+        };
+        // Coming back to the foreground: converge on whatever the current tab is.
+        const onVisible = () => !document.hidden && kick();
+
+        emblaApi.on("scroll", onScroll);
+        emblaApi.on("pointerDown", onDown);
+        emblaApi.on("settle", settleTarget);
+        emblaApi.on("select", onSelect);
+        emblaApi.on("reInit", onSelect);
+        document.addEventListener("visibilitychange", onVisible);
+        write();
+        advance();
+
+        return () => {
+            emblaApi.off("scroll", onScroll);
+            emblaApi.off("pointerDown", onDown);
+            emblaApi.off("settle", settleTarget);
+            emblaApi.off("select", onSelect);
+            emblaApi.off("reInit", onSelect);
+            document.removeEventListener("visibilitychange", onVisible);
+            if (raf) cancelAnimationFrame(raf);
+            if (nav) {
+                delete nav.dataset.live;
+                nav.style.removeProperty("--nav-pos");
+                nav.style.removeProperty("--nav-stretch");
+                nav.style.removeProperty("--nav-squash");
+            }
+        };
+    }, [emblaApi]);
+
+    // Profile popover: close on any pointer press outside it (the avatar and
+    // menu share profileRef, so a press on either is "inside" and won't close),
+    // and whenever the section changes so a stray open menu never rides along
+    // to another tab.
+    useEffect(() => {
+        if (!profileOpen) return;
+        const onDown = (e) => {
+            if (
+                profileRef.current &&
+                !profileRef.current.contains(e.target)
+            ) {
+                setProfileOpen(false);
+            }
+        };
+        document.addEventListener("pointerdown", onDown);
+        return () =>
+            document.removeEventListener("pointerdown", onDown);
+    }, [profileOpen]);
+
+    useEffect(() => {
+        setProfileOpen(false);
+    }, [location.pathname]);
+
     const current = VIEWS[selected];
     const mainIndex = selected < 3 ? selected : 3;
     const inInsights = current.section === "insights";
@@ -182,11 +349,18 @@ function MobileShell({ user, logout }) {
             <header className="mobile-header">
                 <span className="mobile-header-spacer" />
 
-                <span className="mobile-logo">
+                <button
+                    className="mobile-logo"
+                    aria-label="Back to Now"
+                    onClick={() => {
+                        setProfileOpen(false);
+                        goTo(0);
+                    }}
+                >
                     SHIFT <span>⚡</span>
-                </span>
+                </button>
 
-                <div className="mobile-profile">
+                <div className="mobile-profile" ref={profileRef}>
                     <button
                         className="mobile-avatar"
                         aria-label="Account"
@@ -198,42 +372,35 @@ function MobileShell({ user, logout }) {
                     </button>
 
                     {profileOpen && (
-                        <>
-                            <button
-                                className="profile-scrim"
-                                aria-label="Close account menu"
-                                onClick={() => setProfileOpen(false)}
-                            />
-                            <div className="profile-menu" role="menu">
-                                <div className="profile-head">
-                                    <span className="profile-avatar">
-                                        {(user?.name || "?")
-                                            .charAt(0)
-                                            .toUpperCase()}
-                                    </span>
-                                    <div className="profile-id">
-                                        <p className="profile-name">
-                                            {user?.name}
-                                        </p>
-                                        <p
-                                            className="profile-email"
-                                            title={user?.email}
-                                        >
-                                            {user?.email}
-                                        </p>
-                                    </div>
+                        <div className="profile-menu" role="menu">
+                            <div className="profile-head">
+                                <span className="profile-avatar">
+                                    {(user?.name || "?")
+                                        .charAt(0)
+                                        .toUpperCase()}
+                                </span>
+                                <div className="profile-id">
+                                    <p className="profile-name">
+                                        {user?.name}
+                                    </p>
+                                    <p
+                                        className="profile-email"
+                                        title={user?.email}
+                                    >
+                                        {user?.email}
+                                    </p>
                                 </div>
-                                <button
-                                    className="profile-logout"
-                                    onClick={() => {
-                                        setProfileOpen(false);
-                                        logout();
-                                    }}
-                                >
-                                    Log out
-                                </button>
                             </div>
-                        </>
+                            <button
+                                className="profile-logout"
+                                onClick={() => {
+                                    setProfileOpen(false);
+                                    logout();
+                                }}
+                            >
+                                Log out
+                            </button>
+                        </div>
                     )}
                 </div>
             </header>
@@ -273,6 +440,7 @@ function MobileShell({ user, logout }) {
 
             <nav
                 className="bottom-nav"
+                ref={navRef}
                 style={{ "--nav-active": mainIndex }}
             >
                 <span className="nav-pill" aria-hidden="true" />

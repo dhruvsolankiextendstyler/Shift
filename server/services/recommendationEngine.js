@@ -113,16 +113,21 @@ function recommendTask(
         return null;
     }
 
-    // Available time is a hard limit, not a soft nudge: never hand back a task
-    // that can't finish in the window the user says they have (15 min chosen
-    // must not surface a 30 min task). Only fall back to the full pool if
-    // literally nothing fits, so the user still gets their closest option.
+    // Available time is a HARD limit, not a soft nudge: a task the user cannot
+    // finish in the window they gave must never be recommended. Choosing 15 min
+    // must never surface a 30 min task — not even when nothing shorter exists.
+    // If nothing fits, return null so the caller can say so plainly instead of
+    // silently handing back an over-long task. Allowed range: estimatedTime <=
+    // availableTime (exact fit counts).
     const fitting = tasks.filter(
         (task) => task.estimatedTime <= session.availableTime
     );
-    const pool = fitting.length ? fitting : tasks;
 
-    const scoredTasks = pool.map((task) => ({
+    if (!fitting.length) {
+        return null;
+    }
+
+    const scoredTasks = fitting.map((task) => ({
         task,
         score: getRecommendationScore(
             task,

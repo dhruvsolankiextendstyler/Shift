@@ -1,22 +1,60 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../services/api";
 import { startActiveAction } from "../services/activeAction";
 import ToolsMenu from "../components/ToolsMenu";
 
+// The check-in + recommendation survive a tab switch. On desktop the router
+// unmounts Now the moment you visit another tab, which otherwise dropped a
+// fetched recommendation ("the Let's Go screen") as soon as you glanced
+// elsewhere. Module-scoped so it outlives the component; intentionally lost on
+// a full reload (a fresh reload starts a clean check-in) and cleared once a
+// task is started, so finishing one returns you to a fresh check-in — a
+// deliberate, controlled reset rather than an accidental unmount.
+const flowCache = {
+    mood: "",
+    energy: "",
+    time: "",
+    sessionId: "",
+    recommendation: null,
+    emptyReason: null
+};
+
+function resetFlowCache() {
+    flowCache.mood = "";
+    flowCache.energy = "";
+    flowCache.time = "";
+    flowCache.sessionId = "";
+    flowCache.recommendation = null;
+    flowCache.emptyReason = null;
+}
+
 function Now({ active = true }) {
     const navigate = useNavigate();
 
-    const [mood, setMood] = useState("");
-    const [energy, setEnergy] = useState("");
-    const [time, setTime] = useState("");
+    const [mood, setMood] = useState(flowCache.mood);
+    const [energy, setEnergy] = useState(flowCache.energy);
+    const [time, setTime] = useState(flowCache.time);
 
-    const [sessionId, setSessionId] = useState("");
-    const [recommendation, setRecommendation] = useState(null);
+    const [sessionId, setSessionId] = useState(flowCache.sessionId);
+    const [recommendation, setRecommendation] = useState(
+        flowCache.recommendation
+    );
 
     const [message, setMessage] = useState("");
     const [loading, setLoading] = useState(false);
-    const [noTasks, setNoTasks] = useState(false);
+    // null | "empty" (no active tasks) | "no-fit" (tasks exist, none fit time)
+    const [emptyReason, setEmptyReason] = useState(flowCache.emptyReason);
+
+    // Mirror the flow into the module cache so it's there when Now remounts.
+    useEffect(() => {
+        flowCache.mood = mood;
+        flowCache.energy = energy;
+        flowCache.time = time;
+        flowCache.sessionId = sessionId;
+        flowCache.recommendation = recommendation;
+        flowCache.emptyReason = emptyReason;
+    }, [mood, energy, time, sessionId, recommendation, emptyReason]);
 
     const handleSubmit = async () => {
         if (!mood || !energy || !time) {
@@ -25,7 +63,7 @@ function Now({ active = true }) {
         }
 
         setLoading(true);
-        setNoTasks(false);
+        setEmptyReason(null);
 
         try {
             const sessionResponse = await apiFetch("/sessions", {
@@ -59,9 +97,15 @@ function Now({ active = true }) {
                 await recommendationResponse.json();
 
             if (!recommendationResponse.ok) {
-                // No tasks in the pool yet — point them at Tasks.
+                // 404 = nothing to hand back. Two different dead-ends: an empty
+                // pool ("add a task") vs. a pool where nothing fits the chosen
+                // window. We never silently stretch the window, so say which.
                 if (recommendationResponse.status === 404) {
-                    setNoTasks(true);
+                    setEmptyReason(
+                        recommendationData.reason === "no-fit"
+                            ? "no-fit"
+                            : "empty"
+                    );
                     setMessage("");
                     return;
                 }
@@ -80,7 +124,8 @@ function Now({ active = true }) {
 
     // Start the task, then hand off to the app-level focus lock. Persisting
     // the action here is what freezes the whole app to complete/skip only —
-    // and keeps it frozen across reloads. See FocusLock + App.jsx.
+    // and keeps it frozen across reloads. See FocusLock + App.jsx. Clear the
+    // flow cache first so returning after the task shows a fresh check-in.
     const startAction = async () => {
         try {
             const response = await apiFetch("/actions", {
@@ -97,6 +142,7 @@ function Now({ active = true }) {
                 throw new Error(data.error);
             }
 
+            resetFlowCache();
             startActiveAction({
                 actionId: data._id,
                 task: recommendation
@@ -197,7 +243,26 @@ function Now({ active = true }) {
                         <p className="message">{message}</p>
                     )}
 
-                    {noTasks && (
+                    {emptyReason === "no-fit" && (
+                        <div className="empty-state">
+                            <p className="message">
+                                Nothing in your pool fits{" "}
+                                {time === 60
+                                    ? "an hour"
+                                    : `${time} min`}{" "}
+                                right now. Pick a longer window, or add
+                                a shorter task.
+                            </p>
+                            <button
+                                className="secondary-button"
+                                onClick={() => navigate("/tasks")}
+                            >
+                                GO TO TASKS →
+                            </button>
+                        </div>
+                    )}
+
+                    {emptyReason === "empty" && (
                         <div className="empty-state">
                             <p className="message">
                                 Your pool's empty — add a task and
