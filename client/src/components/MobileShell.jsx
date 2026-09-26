@@ -402,50 +402,52 @@ function MobileShell({ user, logout }) {
                     SHIFT <span>⚡</span>
                 </button>
 
-                <div className="mobile-profile" ref={profileRef}>
-                    <button
-                        className="mobile-avatar"
-                        aria-label="Account"
-                        aria-haspopup="true"
-                        aria-expanded={profileOpen}
-                        onClick={() => setProfileOpen((o) => !o)}
-                    >
-                        {(user?.name || "?").charAt(0).toUpperCase()}
-                    </button>
-
-                    {profileOpen && (
-                        <div className="profile-menu" role="menu">
-                            <div className="profile-head">
-                                <span className="profile-avatar">
-                                    {(user?.name || "?")
-                                        .charAt(0)
-                                        .toUpperCase()}
-                                </span>
-                                <div className="profile-id">
-                                    <p className="profile-name">
-                                        {user?.name}
-                                    </p>
-                                    <p
-                                        className="profile-email"
-                                        title={user?.email}
-                                    >
-                                        {user?.email}
-                                    </p>
-                                </div>
-                            </div>
-                            <button
-                                className="profile-logout"
-                                onClick={() => {
-                                    setProfileOpen(false);
-                                    logout();
-                                }}
-                            >
-                                Log out
-                            </button>
-                        </div>
-                    )}
-                </div>
+                <span className="mobile-header-spacer" />
             </header>
+
+            {/* Anchored to the shell, not the header: a backdrop-filter nested
+                under the header's own backdrop-filter blurs nothing. */}
+            <div className="mobile-profile" ref={profileRef}>
+                <button
+                    className="mobile-avatar"
+                    aria-label="Account"
+                    aria-haspopup="true"
+                    aria-expanded={profileOpen}
+                    onClick={() => setProfileOpen((o) => !o)}
+                >
+                    {(user?.name || "?").charAt(0).toUpperCase()}
+                </button>
+
+                {profileOpen && (
+                    <div className="profile-menu" role="menu">
+                        <div className="profile-head">
+                            <span className="profile-avatar">
+                                {(user?.name || "?")
+                                    .charAt(0)
+                                    .toUpperCase()}
+                            </span>
+                            <div className="profile-id">
+                                <p className="profile-name">{user?.name}</p>
+                                <p
+                                    className="profile-email"
+                                    title={user?.email}
+                                >
+                                    {user?.email}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            className="profile-logout"
+                            onClick={() => {
+                                setProfileOpen(false);
+                                logout();
+                            }}
+                        >
+                            Log out
+                        </button>
+                    </div>
+                )}
+            </div>
 
             <div className="embla" ref={setViewport}>
                 <div className="embla__container">

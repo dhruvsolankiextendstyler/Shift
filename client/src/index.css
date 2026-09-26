@@ -2272,8 +2272,10 @@ select:focus-visible {
 
 /* Account popover — name, email, log out */
 .mobile-profile {
-    position: relative;
-    justify-self: end;
+    position: absolute;
+    top: calc(env(safe-area-inset-top) + 11px);
+    right: var(--space-3);
+    z-index: 870;
 }
 
 .profile-menu {
