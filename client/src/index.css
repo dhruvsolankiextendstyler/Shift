@@ -796,6 +796,202 @@ select:focus-visible {
     margin-top: var(--space-4);
 }
 
+/* ---- Focus lock: countdown ring ---- */
+.focus-active {
+    position: relative;
+}
+
+.focus-timer {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    margin: 0 auto var(--space-4);
+    display: grid;
+    place-items: center;
+}
+
+.focus-ring {
+    width: 100%;
+    height: 100%;
+}
+
+.focus-ring-track {
+    fill: none;
+    stroke: var(--viz-track);
+    stroke-width: 10;
+}
+
+.focus-ring-fill {
+    fill: none;
+    stroke: url(#focus-grad);
+    stroke-width: 10;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear;
+    filter: drop-shadow(0 0 6px rgba(37, 106, 191, 0.5));
+}
+.focus-time {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+.focus-time-value {
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.focus-time-sub {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+/* Past the window: warm the ring and breathe gently — no red alarm. */
+.focus-timer.over .focus-ring-fill {
+    stroke: #f5c451;
+    filter: drop-shadow(0 0 8px rgba(245, 196, 81, 0.6));
+}
+
+.focus-timer.over .focus-time-value {
+    color: #f5c451;
+}
+
+.focus-timer.over {
+    animation: focus-pulse 1.8s var(--ease-out) infinite;
+}
+
+@keyframes focus-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+}
+/* ---- Focus lock: completion celebration ---- */
+.celebrate-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.celebrate {
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.confetti {
+    position: absolute;
+    width: 9px;
+    height: 14px;
+    border-radius: 2px;
+    opacity: 0;
+    animation: confetti-burst 1100ms var(--ease-out) var(--delay, 0ms) forwards;
+}
+
+@keyframes confetti-burst {
+    0% { transform: translate(0, 0) rotate(0); opacity: 0; }
+    12% { opacity: 1; }
+    100% { transform: translate(var(--cx), calc(var(--cy) + 90px)) rotate(var(--rot)); opacity: 0; }
+}
+
+.celebrate-badge {
+    display: flex;
+    justify-content: center;
+    margin-bottom: var(--space-3);
+    position: relative;
+    z-index: 3;
+}
+
+.celebrate-check {
+    width: 72px;
+    height: 72px;
+    animation: badge-pop 520ms var(--ease-spring) both;
+}
+.cc-ring {
+    fill: var(--good-tint);
+    stroke: var(--viz-good);
+    stroke-width: 2;
+}
+
+.cc-tick {
+    fill: none;
+    stroke: var(--viz-good);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 40;
+    stroke-dashoffset: 40;
+    animation: tick-draw 420ms var(--ease-out) 180ms forwards;
+}
+
+@keyframes badge-pop {
+    0% { transform: scale(0.2) rotate(-12deg); opacity: 0; }
+    60% { transform: scale(1.12) rotate(4deg); }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+@keyframes tick-draw {
+    to { stroke-dashoffset: 0; }
+}
+
+.streak-bump {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    margin: 0 0 var(--space-3);
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: var(--good-tint);
+    color: var(--good-text);
+    font-weight: 700;
+    font-size: var(--text-base);
+    animation: streak-pop 520ms var(--ease-spring) both;
+}
+
+.streak-flame {
+    display: inline-block;
+    animation: streak-flicker 1.4s var(--ease-out) 0.6s infinite;
+}
+
+@keyframes streak-pop {
+    0% { transform: scale(0.4) translateY(6px); opacity: 0; }
+    60% { transform: scale(1.15); }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes streak-flicker {
+    0%, 100% { transform: scale(1) rotate(0); }
+    50% { transform: scale(1.18) rotate(-4deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .focus-timer.over,
+    .celebrate-check,
+    .cc-tick,
+    .streak-bump,
+    .streak-flame {
+        animation: none;
+    }
+    .focus-ring-fill {
+        transition: none;
+    }
+    .cc-tick {
+        stroke-dashoffset: 0;
+    }
+}
+
 /* ============================================================
    Page heading (Tasks / History / Insights)
    ============================================================ */
@@ -2295,17 +2491,59 @@ select:focus-visible {
     animation: ic-draw 0.55s var(--ease-out);
 }
 
-.bottom-tab.active .nav-ic--insights .nav-ic-bars {
+/* The list lines write themselves in left-to-right, just before the checks. */
+.bottom-tab.active .nav-ic--tasks .nav-ic-lines {
+    stroke-dasharray: 12;
+    animation: ic-write 0.6s var(--ease-out);
+}
+
+/* The clock face sweeps in while the hand rewinds to 12. */
+.bottom-tab.active .nav-ic--history .nav-ic-arc {
+    stroke-dasharray: 42;
+    animation: ic-sweep 0.6s var(--ease-out);
+}
+
+/* Three bars rise like an equalizer, each a beat behind the last. */
+.bottom-tab.active .nav-ic--insights .nav-ic-bar {
     transform-box: fill-box;
     transform-origin: bottom;
-    animation: ic-grow 0.5s var(--ease-spring);
+    animation: ic-grow 0.5s var(--ease-spring) both;
+}
+
+.bottom-tab.active .nav-ic--insights .nav-ic-bar:nth-child(3) {
+    animation-delay: 0.08s;
+}
+
+.bottom-tab.active .nav-ic--insights .nav-ic-bar:nth-child(4) {
+    animation-delay: 0.16s;
+}
+
+/* The label gives a little bounce each time its tab takes over. */
+.bottom-tab.active .bottom-tab-label {
+    animation: ic-label 0.45s var(--ease-spring);
 }
 
 @keyframes ic-bolt {
-    0% { transform: translateY(-1px) scale(0.5) rotate(-10deg); opacity: 0.2; }
+    0% { transform: translateY(-1px) scale(0.5) rotate(-10deg); opacity: 0.2; filter: drop-shadow(0 0 0 transparent); }
     45% { opacity: 1; }
-    60% { transform: translateY(-1px) scale(1.22) rotate(4deg); }
-    100% { transform: translateY(-1px) scale(1.06) rotate(0); }
+    60% { transform: translateY(-1px) scale(1.22) rotate(4deg); filter: drop-shadow(0 0 6px var(--accent)); }
+    100% { transform: translateY(-1px) scale(1.06) rotate(0); filter: drop-shadow(0 0 0 transparent); }
+}
+
+@keyframes ic-write {
+    0% { stroke-dashoffset: 12; opacity: 0.25; }
+    100% { stroke-dashoffset: 0; opacity: 1; }
+}
+
+@keyframes ic-sweep {
+    0% { stroke-dashoffset: 42; }
+    100% { stroke-dashoffset: 0; }
+}
+
+@keyframes ic-label {
+    0% { transform: translateY(5px); }
+    55% { transform: translateY(-2px); }
+    100% { transform: translateY(0); }
 }
 
 @keyframes ic-rewind {
@@ -2331,7 +2569,10 @@ select:focus-visible {
     }
     .bottom-tab.active .nav-ic,
     .bottom-tab.active .nav-ic-check,
-    .bottom-tab.active .nav-ic-bars {
+    .bottom-tab.active .nav-ic-lines,
+    .bottom-tab.active .nav-ic-arc,
+    .bottom-tab.active .nav-ic-bar,
+    .bottom-tab.active .bottom-tab-label {
         animation: none;
     }
 }

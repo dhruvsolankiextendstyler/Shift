@@ -257,7 +257,7 @@ function LineChart({ points }) {
 
 /* ------------------------------ helpers ------------------------------ */
 
-const dayKey = (d) => {
+export const dayKey = (d) => {
     const x = new Date(d);
     const m = String(x.getMonth() + 1).padStart(2, "0");
     const day = String(x.getDate()).padStart(2, "0");
@@ -266,7 +266,7 @@ const dayKey = (d) => {
 
 // Consecutive-day streak from a Set of YYYY-MM-DD strings.
 // Current streak counts back from today (grace: yesterday still counts).
-function computeStreak(dateSet) {
+export function computeStreak(dateSet) {
     if (dateSet.size === 0) return { current: 0, longest: 0 };
 
     const dates = [...dateSet].sort();

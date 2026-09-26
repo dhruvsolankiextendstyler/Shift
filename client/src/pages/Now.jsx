@@ -159,7 +159,8 @@ function Now({ active = true }) {
             resetFlowCache();
             startActiveAction({
                 actionId: data._id,
-                task: recommendation
+                task: recommendation,
+                startedAt: data.startedAt
             });
         } catch (error) {
             console.error(error);

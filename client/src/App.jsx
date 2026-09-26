@@ -63,6 +63,7 @@ function AppShell() {
             <FocusLock
                 actionId={activeAction.actionId}
                 task={activeAction.task}
+                startedAt={activeAction.startedAt}
             />
         );
     }

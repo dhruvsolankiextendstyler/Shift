@@ -102,7 +102,8 @@ export function startActionSync() {
                     if (a && a.taskId && a._id !== dismissed) {
                         startActiveAction({
                             actionId: a._id,
-                            task: a.taskId
+                            task: a.taskId,
+                            startedAt: a.startedAt
                         });
                     }
                 }

@@ -53,7 +53,7 @@ function NavIcon({ section }) {
     if (section === "tasks") {
         return (
             <svg viewBox="0 0 24 24" aria-hidden="true" className="nav-ic nav-ic--tasks">
-                <path {...p} d="M9 6h11M9 12h11M9 18h11" />
+                <path {...p} className="nav-ic-lines" d="M9 6h11M9 12h11M9 18h11" />
                 <path {...p} className="nav-ic-check" d="M3.5 6l1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2" />
             </svg>
         );
@@ -61,17 +61,19 @@ function NavIcon({ section }) {
     if (section === "history") {
         return (
             <svg viewBox="0 0 24 24" aria-hidden="true" className="nav-ic nav-ic--history">
-                <path {...p} d="M3.5 12a8.5 8.5 0 1 0 2.8-6.3L3 8.5" />
+                <path {...p} className="nav-ic-arc" d="M3.5 12a8.5 8.5 0 1 0 2.8-6.3L3 8.5" />
                 <path {...p} d="M3 4v4.5h4.5" />
                 <path {...p} className="nav-ic-hand" d="M12 8v4.3l3 1.7" />
             </svg>
         );
     }
-    // insights
+    // insights — three bars that rise like an equalizer, staggered
     return (
         <svg viewBox="0 0 24 24" aria-hidden="true" className="nav-ic nav-ic--insights">
             <path {...p} d="M4 20h16" />
-            <path {...p} className="nav-ic-bars" d="M6 20v-6M12 20V6M18 20v-9" />
+            <path {...p} className="nav-ic-bar" d="M6 20v-6" />
+            <path {...p} className="nav-ic-bar" d="M12 20V6" />
+            <path {...p} className="nav-ic-bar" d="M18 20v-9" />
         </svg>
     );
 }
@@ -82,6 +84,8 @@ function MobileShell({ user, logout }) {
     const pathRef = useRef(location.pathname);
     const navRef = useRef(null);
     const profileRef = useRef(null);
+    const viewportRef = useRef(null);
+    const slideAnim = useRef(null);
 
     useEffect(() => {
         pathRef.current = location.pathname;
@@ -103,6 +107,15 @@ function MobileShell({ user, logout }) {
         skipSnaps: false,
         startIndex: initialIndexRef.current
     });
+
+    // One ref node feeds both embla (swipe) and our tap-slide animation.
+    const setViewport = useCallback(
+        (node) => {
+            viewportRef.current = node;
+            emblaRef(node);
+        },
+        [emblaRef]
+    );
 
     // Insights data fetched ONCE and shared across all four insights slides.
     const insights = useInsightsData();
@@ -136,10 +149,39 @@ function MobileShell({ user, logout }) {
         if (target >= 0) emblaApi.scrollTo(target, true);
     }, [location.pathname, emblaApi]);
 
-    // Tabs jump straight to their slide (jump=true) — no animated churn through
-    // the slides in between. Swiping still animates normally.
+    // Tapping a tab jumps embla straight to the target (jump=true) — no animated
+    // churn painting every heavy slide in between, which used to freeze the app.
+    // We then play a short directional slide+fade on the viewport itself, so a
+    // tap reads like a native page transition instead of a hard cut. Swiping
+    // still animates through embla as before.
     const goTo = useCallback(
-        (index) => emblaApi && emblaApi.scrollTo(index, true),
+        (index) => {
+            if (!emblaApi) return;
+            const from = emblaApi.selectedScrollSnap();
+            emblaApi.scrollTo(index, true);
+
+            const vp = viewportRef.current;
+            if (
+                !vp ||
+                index === from ||
+                window.matchMedia("(prefers-reduced-motion: reduce)").matches
+            ) {
+                return;
+            }
+
+            // New screen enters from the direction of travel: a right-hand tab
+            // slides in from the right, a left-hand one from the left. Clipped
+            // by .mobile-shell's overflow, so the offset never leaks a scrollbar.
+            const dir = index > from ? 1 : -1;
+            slideAnim.current?.cancel();
+            slideAnim.current = vp.animate(
+                [
+                    { transform: `translateX(${dir * 60}px)`, opacity: 0.35 },
+                    { transform: "translateX(0)", opacity: 1 }
+                ],
+                { duration: 300, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
+            );
+        },
         [emblaApi]
     );
 
@@ -405,7 +447,7 @@ function MobileShell({ user, logout }) {
                 </div>
             </header>
 
-            <div className="embla" ref={emblaRef}>
+            <div className="embla" ref={setViewport}>
                 <div className="embla__container">
                     <div className="embla__slide">
                         <Now active={current.section === "now"} />
