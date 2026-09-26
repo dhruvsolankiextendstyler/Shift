@@ -11,6 +11,14 @@ const PRIORITY_OPTIONS = [
     { value: "high", label: "High" }
 ];
 
+// Effort = how much energy the task DEMANDS. SHIFT matches this against the
+// energy you report at check-in. Priority (above) is importance, not energy.
+const EFFORT_OPTIONS = [
+    { value: "low", label: "Low — light lift" },
+    { value: "medium", label: "Medium" },
+    { value: "high", label: "High — heavy lift" }
+];
+
 const TYPE_OPTIONS = [
     { value: "oneoff", label: "One-time — clears once done" },
     { value: "permanent", label: "Permanent — stays, counts every time" }
@@ -28,6 +36,7 @@ function Tasks() {
     const [category, setCategory] = useState("");
     const [estimatedTime, setEstimatedTime] = useState("");
     const [priority, setPriority] = useState("medium");
+    const [effort, setEffort] = useState("medium");
     const [type, setType] = useState("permanent");
 
     const [filter, setFilter] = useState("active");
@@ -58,6 +67,7 @@ function Tasks() {
         setCategory("");
         setEstimatedTime("");
         setPriority("medium");
+        setEffort("medium");
         setType("permanent");
         setEditingId(null);
     };
@@ -76,6 +86,7 @@ function Tasks() {
             category,
             estimatedTime: Number(estimatedTime),
             priority,
+            effort,
             type
         };
 
@@ -118,6 +129,7 @@ function Tasks() {
         setCategory(task.category);
         setEstimatedTime(task.estimatedTime);
         setPriority(task.priority);
+        setEffort(task.effort || "medium");
         setType(task.type || "oneoff");
 
         window.scrollTo({
@@ -281,6 +293,16 @@ function Tasks() {
                             />
                         </div>
 
+                        <div className="input-group">
+                            <label>Effort</label>
+
+                            <Select
+                                value={effort}
+                                onChange={setEffort}
+                                options={EFFORT_OPTIONS}
+                            />
+                        </div>
+
                     </div>
 
                     <div className="input-group">
@@ -401,6 +423,12 @@ function Tasks() {
 
                                     <span>
                                         {task.estimatedTime} min
+                                    </span>
+
+                                    <span>•</span>
+
+                                    <span>
+                                        {task.effort || "medium"} effort
                                     </span>
 
                                     <span>•</span>

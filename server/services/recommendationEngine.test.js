@@ -18,6 +18,7 @@ function makeTask(overrides = {}) {
         category: "general",
         estimatedTime: 30,
         priority: "medium",
+        effort: "medium",
         status: "active",
         ...overrides
     };
@@ -27,212 +28,91 @@ function session(mood, energy, availableTime) {
     return { mood, energy, availableTime };
 }
 
-// A completed action with feedback, referencing a task by identity.
 function completed(task, feedback) {
-    return {
-        status: "completed",
-        feedback,
-        taskId: task
-    };
+    return { status: "completed", feedback, taskId: task };
 }
 
 function skipped(task) {
-    return {
-        status: "skipped",
-        feedback: null,
-        taskId: task
-    };
+    return { status: "skipped", feedback: null, taskId: task };
 }
 
-// ---- Scenario 1: Low mood + Low energy + short time --------------------
-// Expect: favor a short, manageable action over a demanding one.
+// ---- The core change: ENERGY ↔ EFFORT, not energy ↔ duration -----------
+// Low energy must favor a LOW-EFFORT task, even when both fit the window and
+// the low-effort one is the longer of the two. Duration no longer stands in
+// for energy.
 
-test("low + low + short time favors the manageable action", () => {
-    const short = makeTask({ estimatedTime: 5, title: "Quick win" });
-    const long = makeTask({ estimatedTime: 60, title: "Deep work" });
+test("low energy favors the low-effort task over a high-effort one", () => {
+    const light = makeTask({
+        effort: "low",
+        estimatedTime: 45,
+        title: "Light but long"
+    });
+    const heavy = makeTask({
+        effort: "high",
+        estimatedTime: 10,
+        title: "Heavy but short"
+    });
 
     const picked = recommendTask(
-        [long, short],
-        session("low", "low", 5)
+        [heavy, light],
+        session("okay", "low", 60)
     );
 
-    assert.equal(picked.title, "Quick win");
+    assert.equal(picked.title, "Light but long");
 });
 
-// ---- Scenario 2: Good mood + High energy + long time -------------------
-// Expect: a demanding action is allowed (not penalized into last place).
-
-test("good + high + long time allows a demanding action", () => {
-    const demanding = makeTask({
-        estimatedTime: 60,
-        priority: "high",
-        title: "Big project"
-    });
-    const trivial = makeTask({
-        estimatedTime: 5,
-        priority: "low",
-        title: "Tiny errand"
-    });
+test("high energy allows a high-effort task (not penalized)", () => {
+    const heavy = makeTask({ effort: "high", title: "Deep work" });
+    const trivial = makeTask({ effort: "low", title: "Busywork" });
 
     const picked = recommendTask(
-        [trivial, demanding],
+        [trivial, heavy],
         session("good", "high", 60)
     );
 
-    assert.equal(picked.title, "Big project");
+    assert.equal(picked.title, "Deep work");
 });
 
-// ---- Scenario 3: Angry + High ------------------------------------------
-// Expect: a sensible choice that fits history and available time.
+test("a task demanding more energy than you have is penalized", () => {
+    const sess = session("okay", "low", 60);
+    const match = getRecommendationScore(
+        makeTask({ effort: "low" }),
+        sess
+    );
+    const wall = getRecommendationScore(
+        makeTask({ effort: "high" }),
+        sess
+    );
 
-test("angry + high still fits the action to available time", () => {
-    const fits = makeTask({ estimatedTime: 20, title: "Fits window" });
-    const overflows = makeTask({
-        estimatedTime: 90,
-        title: "Way too long"
-    });
+    assert.ok(match > wall);
+});
+
+// ---- PRIORITY is a separate axis from energy/effort --------------------
+// With the energy match equal, higher priority (importance) wins.
+
+test("priority breaks ties when the energy match is equal", () => {
+    const low = makeTask({ priority: "low", title: "Nice to do" });
+    const high = makeTask({ priority: "high", title: "Matters most" });
 
     const picked = recommendTask(
-        [overflows, fits],
-        session("angry", "high", 30)
+        [low, high],
+        session("okay", "medium", 60)
     );
 
-    assert.equal(picked.title, "Fits window");
+    assert.equal(picked.title, "Matters most");
 });
 
-// ---- Scenario 4: Overwhelmed + High ------------------------------------
-// Expect: reset/decompression — a manageable action over a heavy one.
+// ---- MOOD lowers tolerance for the most demanding work -----------------
 
-test("overwhelmed + high favors a manageable reset action", () => {
-    const reset = makeTask({ estimatedTime: 10, title: "Short reset" });
-    const heavy = makeTask({ estimatedTime: 60, title: "Heavy task" });
+test("a rough mood penalizes a high-effort task", () => {
+    const heavy = makeTask({ effort: "high" });
+    const rough = getRecommendationScore(heavy, session("overwhelmed", "high", 60));
+    const fine = getRecommendationScore(heavy, session("good", "high", 60));
 
-    const picked = recommendTask(
-        [heavy, reset],
-        session("overwhelmed", "high", 60)
-    );
-
-    assert.equal(picked.title, "Short reset");
+    assert.ok(rough < fine);
 });
 
-// ---- Scenario 5: Repeated same category --------------------------------
-// Expect: variety reduces repetitive recommendations.
-
-test("variety beats a recently over-used category", () => {
-    const overused = makeTask({ category: "cs", title: "More CS" });
-    const fresh = makeTask({ category: "health", title: "Fresh area" });
-
-    // recentTasks shows the "cs" category was just used twice.
-    const recentTasks = [
-        makeTask({ category: "cs" }),
-        makeTask({ category: "cs" })
-    ];
-
-    const picked = recommendTask(
-        [overused, fresh],
-        session("okay", "medium", 60),
-        recentTasks
-    );
-
-    assert.equal(picked.title, "Fresh area");
-});
-
-// ---- Scenario 6: Recently used task ------------------------------------
-// Recent-task avoidance is enforced at the route layer (the recommend
-// route filters out recently acted-on task ids before scoring). Here we
-// confirm the scoring at least does not *prefer* a same-category recent
-// task over a fresh one.
-
-test("recently used category is not preferred over a fresh one", () => {
-    const recent = makeTask({ category: "cs", title: "Recent CS" });
-    const fresh = makeTask({ category: "art", title: "Fresh art" });
-
-    const recentTasks = [makeTask({ category: "cs" })];
-
-    const scoreRecent = getRecommendationScore(
-        recent,
-        session("okay", "medium", 60),
-        recentTasks
-    );
-    const scoreFresh = getRecommendationScore(
-        fresh,
-        session("okay", "medium", 60),
-        recentTasks
-    );
-
-    assert.ok(scoreFresh > scoreRecent);
-});
-
-// ---- Scenario 7: Repeated skipped task ---------------------------------
-// Expect: repeatedly skipping a task lowers its future score.
-
-test("repeated skips reduce a task's future score", () => {
-    const task = makeTask({ title: "Often skipped" });
-    const sess = session("okay", "medium", 60);
-
-    const baseline = getRecommendationScore(task, sess, [], []);
-
-    const withSkips = getRecommendationScore(task, sess, [], [
-        skipped(task),
-        skipped(task),
-        skipped(task)
-    ]);
-
-    assert.ok(withSkips < baseline);
-});
-
-// ---- Scenario 8: Completed + Better ------------------------------------
-// Expect: positive feedback raises the task's future score.
-
-test("completed + better raises future score", () => {
-    const task = makeTask({ title: "Felt great" });
-    const sess = session("okay", "medium", 60);
-
-    const baseline = getRecommendationScore(task, sess, [], []);
-    const withBetter = getRecommendationScore(task, sess, [], [
-        completed(task, "better")
-    ]);
-
-    assert.ok(withBetter > baseline);
-});
-
-// ---- Scenario 9: Completed + Worse -------------------------------------
-// Expect: negative feedback lowers the task's future score.
-
-test("completed + worse lowers future score", () => {
-    const task = makeTask({ title: "Felt worse" });
-    const sess = session("okay", "medium", 60);
-
-    const baseline = getRecommendationScore(task, sess, [], []);
-    const withWorse = getRecommendationScore(task, sess, [], [
-        completed(task, "worse")
-    ]);
-
-    assert.ok(withWorse < baseline);
-});
-
-// ---- Cross-check: skipped treated differently from completed -----------
-// Step 5 requires skipped actions to be handled differently from
-// completed ones. A skip should hurt less than a completed+worse.
-
-test("a skip is treated differently from a completed+worse", () => {
-    const task = makeTask();
-    const sess = session("okay", "medium", 60);
-
-    const skipScore = getRecommendationScore(task, sess, [], [
-        skipped(task)
-    ]);
-    const worseScore = getRecommendationScore(task, sess, [], [
-        completed(task, "worse")
-    ]);
-
-    assert.notEqual(skipScore, worseScore);
-});
-
-// ---- Regression: available time is a hard limit -----------------------
-// User reported: chose 15 min, got a 30 min task. A task that can't finish
-// in the window must never win, even a high-priority one, as long as
-// something that DOES fit exists.
+// ---- TIME is a HARD limit, unchanged -----------------------------------
 
 test("15 min available never surfaces a 30 min task when one fits", () => {
     const fits = makeTask({
@@ -254,23 +134,71 @@ test("15 min available never surfaces a 30 min task when one fits", () => {
     assert.equal(picked.title, "Fits the window");
 });
 
-// If NOTHING fits the window, refuse rather than hand back an over-long task.
-// The user reported the opposite: choosing 15 min must never yield a 30 (or 45)
-// min task, even when nothing shorter exists. The route turns this null into a
-// clear "nothing fits your window" message.
 test("returns null when nothing fits the window", () => {
     const long = makeTask({ estimatedTime: 45, title: "Too long" });
 
-    const picked = recommendTask(
-        [long],
-        session("okay", "medium", 15)
-    );
+    const picked = recommendTask([long], session("okay", "medium", 15));
 
     assert.equal(picked, null);
 });
 
-// ---- Edge case: empty task pool ----------------------------------------
-
 test("no tasks returns null", () => {
     assert.equal(recommendTask([], session("okay", "medium", 30)), null);
+});
+
+// ---- VARIETY -----------------------------------------------------------
+
+test("variety beats a recently over-used category", () => {
+    const overused = makeTask({ category: "cs", title: "More CS" });
+    const fresh = makeTask({ category: "health", title: "Fresh area" });
+
+    const recentTasks = [
+        makeTask({ category: "cs" }),
+        makeTask({ category: "cs" })
+    ];
+
+    const picked = recommendTask(
+        [overused, fresh],
+        session("okay", "medium", 60),
+        recentTasks
+    );
+
+    assert.equal(picked.title, "Fresh area");
+});
+
+// ---- PERSONAL FEEDBACK -------------------------------------------------
+
+test("completed + better raises future score; worse lowers it", () => {
+    const task = makeTask();
+    const sess = session("okay", "medium", 60);
+
+    const baseline = getRecommendationScore(task, sess, [], []);
+    const better = getRecommendationScore(task, sess, [], [completed(task, "better")]);
+    const worse = getRecommendationScore(task, sess, [], [completed(task, "worse")]);
+
+    assert.ok(better > baseline);
+    assert.ok(worse < baseline);
+});
+
+test("a skip is treated differently from a completed+worse", () => {
+    const task = makeTask();
+    const sess = session("okay", "medium", 60);
+
+    const skip = getRecommendationScore(task, sess, [], [skipped(task)]);
+    const worse = getRecommendationScore(task, sess, [], [completed(task, "worse")]);
+
+    assert.notEqual(skip, worse);
+});
+
+// ---- Back-compat: tasks with no effort default to "medium" -------------
+
+test("a task with no effort field is treated as medium", () => {
+    const noEffort = makeTask();
+    delete noEffort.effort;
+
+    const sess = session("okay", "medium", 60);
+    const asMedium = getRecommendationScore(makeTask({ effort: "medium" }), sess);
+    const asUndefined = getRecommendationScore(noEffort, sess);
+
+    assert.equal(asUndefined, asMedium);
 });

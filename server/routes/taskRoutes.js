@@ -11,6 +11,7 @@ router.post("/", async (req, res) => {
             category: req.body.category,
             estimatedTime: req.body.estimatedTime,
             priority: req.body.priority,
+            effort: req.body.effort,
             type: req.body.type,
             user: req.userId
         });

@@ -1,3 +1,14 @@
+// Level 1/2/3 for both the energy you HAVE and the effort a task DEMANDS.
+// They share one scale on purpose: matching one to the other is the engine's
+// whole job. The old engine faked this with task DURATION, which is why "low
+// energy" used to wrongly mean "short task".
+const levelScore = {
+    low: 1,
+    medium: 2,
+    high: 3
+};
+
+// Mood is a separate, emotional axis — not the same thing as energy.
 const moodScore = {
     low: 1,
     okay: 2,
@@ -5,12 +16,6 @@ const moodScore = {
     great: 4,
     angry: 2,
     overwhelmed: 1
-};
-
-const energyScore = {
-    low: 1,
-    medium: 2,
-    high: 3
 };
 
 function getRecommendationScore(
@@ -22,34 +27,30 @@ function getRecommendationScore(
     let score = 50;
 
     const mood = moodScore[session.mood] || 2;
-    const energy = energyScore[session.energy] || 2;
+    const energy = levelScore[session.energy] || 2;
+    const effort = levelScore[task.effort] || 2;
 
-    // STATE FIT
-    if (energy === 1) {
-        score += task.estimatedTime <= 30 ? 20 : -15;
+    // ENERGY ↔ EFFORT — the axis the engine is built around. Match the gas you
+    // HAVE against the gas the task DEMANDS. Time (duration) is a hard filter in
+    // recommendTask; priority (importance) is scored below. Neither stands in
+    // for energy any more — that was the old bug.
+    const gap = effort - energy; // > 0 means the task wants more than you've got
+    if (gap <= 0) {
+        // Dead-on match, or energy to spare (comfortably doable).
+        score += gap === 0 ? 30 : 15;
+    } else {
+        // A stretch (one level over) or a wall (two levels over).
+        score -= gap === 1 ? 15 : 35;
     }
 
-    if (energy === 3) {
-        score += task.estimatedTime >= 30 ? 15 : 5;
-    }
-
-    if (mood <= 2) {
-        score += task.estimatedTime <= 30 ? 10 : -5;
+    // MOOD — a rough headspace lowers tolerance for the most demanding work.
+    // Layers on top of the energy match; never touches time.
+    if (mood <= 2 && effort === 3) {
+        score -= 15;
     }
 
     if (mood >= 3) {
-        score += 10;
-    }
-
-    // TIME FIT
-    if (task.estimatedTime <= session.availableTime) {
-        score += 20;
-    } else if (
-        task.estimatedTime <= session.availableTime + 15
-    ) {
         score += 5;
-    } else {
-        score -= 25;
     }
 
     // PRIORITY

@@ -32,6 +32,15 @@ const taskSchema = new mongoose.Schema(
             default: "medium"
         },
 
+        // How much energy/focus the task DEMANDS — matched against the energy
+        // you report at check-in. Deliberately separate from priority: a
+        // high-priority task can be low-effort, and vice versa.
+        effort: {
+            type: String,
+            enum: ["low", "medium", "high"],
+            default: "medium"
+        },
+
         status: {
             type: String,
             enum: ["active", "completed", "deleted"],

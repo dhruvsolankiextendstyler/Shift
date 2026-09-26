@@ -122,6 +122,20 @@ function Now({ active = true }) {
         }
     };
 
+    // Ditch the current recommendation and go back to a clean check-in. Without
+    // this the recommendation card is a dead end (no way back to change your
+    // time/energy) and the cached pick lingers across tab switches.
+    const startOver = () => {
+        resetFlowCache();
+        setMood("");
+        setEnergy("");
+        setTime("");
+        setSessionId("");
+        setRecommendation(null);
+        setEmptyReason(null);
+        setMessage("");
+    };
+
     // Start the task, then hand off to the app-level focus lock. Persisting
     // the action here is what freezes the whole app to complete/skip only —
     // and keeps it frozen across reloads. See FocusLock + App.jsx. Clear the
@@ -298,6 +312,7 @@ function Now({ active = true }) {
                     <p className="task-meta">
                         {recommendation.category} •{" "}
                         {recommendation.estimatedTime} min •{" "}
+                        {recommendation.effort || "medium"} effort •{" "}
                         {recommendation.priority} priority
                     </p>
 
@@ -306,6 +321,13 @@ function Now({ active = true }) {
                         onClick={startAction}
                     >
                         LET'S GO ⚡
+                    </button>
+
+                    <button
+                        className="secondary-button"
+                        onClick={startOver}
+                    >
+                        ← START OVER
                     </button>
 
                 </section>
