@@ -468,7 +468,7 @@ function MobileShell({ user, logout }) {
                         <Tasks />
                     </div>
                     <div className="embla__slide">
-                        <History />
+                        <History active={current.section === "history"} />
                     </div>
                     {INSIGHTS_TABS.map((t) => (
                         <div className="embla__slide" key={t.id}>

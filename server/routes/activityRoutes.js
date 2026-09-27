@@ -1,28 +1,39 @@
 const express = require("express");
-const User = require("../models/User");
+const Activity = require("../models/Activity");
 
 const router = express.Router();
 
-// "Done" in Deep Read / Word Forge maps to a counter on the user.
-const FIELD = { read: "readCount", vocab: "vocabCount" };
+const KINDS = new Set(["read", "vocab"]);
 
-function counts(user) {
-    return {
-        readCount: user.readCount || 0,
-        vocabCount: user.vocabCount || 0
-    };
+// Downtime totals, derived from the Activity records themselves — the same
+// source of truth the History calendar reads, so the two can never disagree.
+async function counts(userId) {
+    const [readCount, vocabCount] = await Promise.all([
+        Activity.countDocuments({ user: userId, type: "read" }),
+        Activity.countDocuments({ user: userId, type: "vocab" })
+    ]);
+    return { readCount, vocabCount };
 }
 
-// Current downtime counts (Insights reads this).
+// Current downtime counts (Insights' "Downtime" card reads this).
 router.get("/", async (req, res) => {
     try {
-        const user = await User.findById(req.userId).select(
-            "readCount vocabCount"
-        );
-        if (!user) {
-            return res.status(404).json({ error: "User not found" });
-        }
-        res.json(counts(user));
+        res.json(await counts(req.userId));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Dated downtime history (the History calendar reads this and merges it with
+// task actions). Newest first; capped so a huge history can't blow up the
+// response.
+router.get("/history", async (req, res) => {
+    try {
+        const items = await Activity.find({ user: req.userId })
+            .sort({ completedAt: -1 })
+            .limit(1000)
+            .select("type title completedAt");
+        res.json(items);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -31,21 +42,18 @@ router.get("/", async (req, res) => {
 // Log one finished downtime session — Deep Read or Word Forge "Done".
 router.post("/log", async (req, res) => {
     try {
-        const field = FIELD[req.body.kind];
-        if (!field) {
+        const { kind, title } = req.body;
+        if (!KINDS.has(kind)) {
             return res.status(400).json({ error: "Unknown activity kind" });
         }
 
-        const user = await User.findByIdAndUpdate(
-            req.userId,
-            { $inc: { [field]: 1 } },
-            { new: true }
-        ).select("readCount vocabCount");
+        await Activity.create({
+            user: req.userId,
+            type: kind,
+            title: typeof title === "string" ? title.slice(0, 200) : ""
+        });
 
-        if (!user) {
-            return res.status(404).json({ error: "User not found" });
-        }
-        res.json(counts(user));
+        res.status(201).json(await counts(req.userId));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

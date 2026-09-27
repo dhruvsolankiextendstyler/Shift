@@ -21,19 +21,11 @@ const userSchema = new mongoose.Schema(
             type: String,
             required: true,
             minlength: 6
-        },
-
-        // Downtime engagement — bumped when the user hits "Done" in Deep Read
-        // / Word Forge (see activityRoutes). Surfaced in Insights.
-        readCount: {
-            type: Number,
-            default: 0
-        },
-
-        vocabCount: {
-            type: Number,
-            default: 0
         }
+
+        // Downtime engagement (Deep Read / Word Forge "Done") now lives in the
+        // Activity model as dated per-activity records — not as counters here —
+        // so it can feed both Insights and the History calendar by date.
     },
     {
         timestamps: true

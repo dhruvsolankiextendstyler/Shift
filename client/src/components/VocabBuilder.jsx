@@ -149,11 +149,11 @@ function VocabBuilder({ open, onClose }) {
     const handleDone = useCallback(() => {
         if (doneBusyRef.current) return;
         doneBusyRef.current = true;
-        logActivity("vocab").finally(() => {
+        logActivity("vocab", entry?.word).finally(() => {
             doneBusyRef.current = false;
         });
         load(); // next word — keeps Word Forge open
-    }, [load]);
+    }, [load, entry]);
 
     // First open pulls a word; reopening keeps the last one.
     useEffect(() => {

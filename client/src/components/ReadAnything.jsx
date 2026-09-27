@@ -228,7 +228,7 @@ function ReadAnything({ open, onClose }) {
     const handleDone = useCallback(() => {
         if (doneBusyRef.current) return;
         doneBusyRef.current = true;
-        logActivity("read").finally(() => {
+        logActivity("read", article?.title).finally(() => {
             doneBusyRef.current = false;
         });
         load(article?.topic); // next topic — keeps Deep Read open
