@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Modal from "./Modal";
 import { logActivity } from "../services/activity";
 
@@ -127,6 +127,8 @@ function VocabBuilder({ open, onClose }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [entry, setEntry] = useState(null);
+    // Guards against a double-tap logging the same word twice (see handleDone).
+    const doneBusyRef = useRef(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -140,6 +142,18 @@ function VocabBuilder({ open, onClose }) {
             setLoading(false);
         }
     }, []);
+
+    // "Done" = mark THIS word done (log it) and advance to the next one, staying
+    // open. Distinct from "×" (close) and from "Another →" (skip without
+    // logging). The ref makes a rapid double-tap log once, not twice.
+    const handleDone = useCallback(() => {
+        if (doneBusyRef.current) return;
+        doneBusyRef.current = true;
+        logActivity("vocab").finally(() => {
+            doneBusyRef.current = false;
+        });
+        load(); // next word — keeps Word Forge open
+    }, [load]);
 
     // First open pulls a word; reopening keeps the last one.
     useEffect(() => {
@@ -218,10 +232,8 @@ function VocabBuilder({ open, onClose }) {
                 <div className="vocab-actions">
                     <button
                         className="secondary-button"
-                        onClick={() => {
-                            logActivity("vocab");
-                            onClose();
-                        }}
+                        onClick={handleDone}
+                        disabled={loading}
                     >
                         Done
                     </button>

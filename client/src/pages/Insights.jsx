@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../services/api";
 import ErrorState from "../components/ErrorState";
 
@@ -324,8 +324,12 @@ export function useInsightsData() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
 
-    const load = async () => {
-        setLoading(true);
+    // `silent` skips the loading flip so a background refresh (e.g. re-entering
+    // the Insights tab on mobile, where the slide never unmounts) doesn't blank
+    // the charts — it just swaps in fresh numbers. useCallback keeps `reload`
+    // stable so callers can safely put it in effect deps.
+    const load = useCallback(async ({ silent = false } = {}) => {
+        if (!silent) setLoading(true);
         setError(false);
         try {
             const [actionsRes, tasksRes, activityRes] = await Promise.all([
@@ -347,13 +351,13 @@ export function useInsightsData() {
             console.error("Failed to load insights:", err);
             setError(true);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         load();
-    }, []);
+    }, [load]);
 
     const d = useMemo(() => {
         const total = actions.length;

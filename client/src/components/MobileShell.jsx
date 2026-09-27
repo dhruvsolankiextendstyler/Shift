@@ -120,6 +120,16 @@ function MobileShell({ user, logout }) {
     // Insights data fetched ONCE and shared across all four insights slides.
     const insights = useInsightsData();
 
+    // Those slides never unmount (embla keeps them all mounted), so that single
+    // fetch goes stale the moment you log a downtime session or finish a task.
+    // Silently re-pull whenever you land on an Insights slide, so a just-logged
+    // Word Forge / Deep Read actually shows up instead of "nothing to show".
+    const onInsights = VIEWS[selected]?.section === "insights";
+    const reloadInsights = insights.reload;
+    useEffect(() => {
+        if (onInsights) reloadInsights({ silent: true });
+    }, [onInsights, reloadInsights]);
+
     // embla → state + URL
     useEffect(() => {
         if (!emblaApi) return;

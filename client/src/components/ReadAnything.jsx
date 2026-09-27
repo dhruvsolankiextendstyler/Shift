@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Modal from "./Modal";
 import { logActivity } from "../services/activity";
 
@@ -169,6 +169,8 @@ function ReadAnything({ open, onClose }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [article, setArticle] = useState(null);
+    // Guards against a double-tap logging the same read twice (see handleDone).
+    const doneBusyRef = useRef(false);
 
     const load = useCallback(async (exclude) => {
         setLoading(true);
@@ -219,6 +221,18 @@ function ReadAnything({ open, onClose }) {
             setLoading(false);
         }
     }, []);
+
+    // "Done" = mark THIS read done (log it) and pull the next topic, staying
+    // open. Distinct from "×" (close) and from "Another →" (skip without
+    // logging). The ref makes a rapid double-tap log once, not twice.
+    const handleDone = useCallback(() => {
+        if (doneBusyRef.current) return;
+        doneBusyRef.current = true;
+        logActivity("read").finally(() => {
+            doneBusyRef.current = false;
+        });
+        load(article?.topic); // next topic — keeps Deep Read open
+    }, [load, article]);
 
     // First open pulls a topic; reopening keeps the last read.
     useEffect(() => {
@@ -318,10 +332,8 @@ function ReadAnything({ open, onClose }) {
                     <div className="read-actions">
                         <button
                             className="secondary-button"
-                            onClick={() => {
-                                logActivity("read");
-                                onClose();
-                            }}
+                            onClick={handleDone}
+                            disabled={loading}
                         >
                             Done
                         </button>

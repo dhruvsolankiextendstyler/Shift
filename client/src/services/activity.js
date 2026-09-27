@@ -1,9 +1,11 @@
 import { apiFetch } from "./api";
 
-// Fire-and-forget: log one finished downtime session (Deep Read / Word Forge
-// "Done"). Best-effort — a failed log must never block closing the sheet.
+// Log one finished downtime session (Deep Read / Word Forge "Done").
+// Best-effort — a failed log must never block the UI — but the promise is
+// returned so the caller can guard against double-submits (see the Done
+// handlers). Resolves either way; never rejects.
 export function logActivity(kind) {
-    apiFetch("/activity/log", {
+    return apiFetch("/activity/log", {
         method: "POST",
         body: JSON.stringify({ kind })
     }).catch(() => {});
