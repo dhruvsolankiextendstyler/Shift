@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../services/api";
 import { startActiveAction } from "../services/activeAction";
 import ToolsMenu from "../components/ToolsMenu";
+import SlideToConfirm from "../components/SlideToConfirm";
+import FlipText from "../components/FlipText";
 
 // The check-in + recommendation survive a tab switch. On desktop the router
 // unmounts Now the moment you visit another tab, which otherwise dropped a
@@ -177,7 +179,9 @@ function Now({ active = true }) {
                     <div className="hero">
                         <p className="eyebrow">SHIFT ⚡ MOMENTUM ON DEMAND</p>
 
-                        <h1>One move. That's all it takes.</h1>
+                        <h1>
+                            <FlipText text="One move. That's all it takes." />
+                        </h1>
 
                         <p className="subtitle">
                             Tell us where your head's at. We'll hand
@@ -317,12 +321,11 @@ function Now({ active = true }) {
                         {recommendation.priority} priority
                     </p>
 
-                    <button
-                        className="shift-button"
-                        onClick={startAction}
-                    >
-                        LET'S GO ⚡
-                    </button>
+                    <SlideToConfirm
+                        label="Slide to start ⚡"
+                        confirmedLabel="Let's go ⚡"
+                        onConfirm={startAction}
+                    />
 
                     <button
                         className="secondary-button"

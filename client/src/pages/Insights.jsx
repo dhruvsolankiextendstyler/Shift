@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../services/api";
 import ErrorState from "../components/ErrorState";
+import CountUp from "../components/CountUp";
 
 /* ---------- tiny chart primitives (hand-rolled, theme-matched) ---------- */
 
@@ -542,19 +543,19 @@ export function InsightsTabContent({ d, tab }) {
                 <div className="stats-grid">
                     <div className="stat-card">
                         <span>Total actions</span>
-                        <strong>{d.total}</strong>
+                        <strong><CountUp value={d.total} /></strong>
                     </div>
                     <div className="stat-card">
                         <span>Completion rate</span>
-                        <strong>{d.completionRate}%</strong>
+                        <strong><CountUp value={d.completionRate} />%</strong>
                     </div>
                     <div className="stat-card">
                         <span>Permanent logged</span>
-                        <strong>{d.permanentLogged}</strong>
+                        <strong><CountUp value={d.permanentLogged} /></strong>
                     </div>
                     <div className="stat-card">
                         <span>Untouched tasks</span>
-                        <strong>{d.untouched}</strong>
+                        <strong><CountUp value={d.untouched} /></strong>
                     </div>
                 </div>
 
@@ -701,7 +702,7 @@ export function InsightsTabContent({ d, tab }) {
                     <div className="stat-card">
                         <span>Current streak</span>
                         <strong>
-                            {d.overallStreak.current}
+                            <CountUp value={d.overallStreak.current} />
                             <span className="unit">
                                 {" "}
                                 day
@@ -712,7 +713,7 @@ export function InsightsTabContent({ d, tab }) {
                     <div className="stat-card">
                         <span>Longest streak</span>
                         <strong>
-                            {d.overallStreak.longest}
+                            <CountUp value={d.overallStreak.longest} />
                             <span className="unit">
                                 {" "}
                                 day

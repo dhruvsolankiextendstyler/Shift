@@ -8,6 +8,7 @@ import {
 } from "../services/activeAction";
 import { reflectCompletionOnTask } from "../services/resolve";
 import { computeStreak, dayKey } from "../pages/Insights";
+import FlipText from "./FlipText";
 
 // A completed move earns a little payoff: a synthesized chime (no audio asset)
 // and a haptic buzz. Both no-op where unsupported. Callers skip this under
@@ -332,7 +333,9 @@ function FocusLock({ actionId, task, startedAt }) {
 
                         <p className="eyebrow">✧ QUICK GUT CHECK</p>
 
-                        <h1>Did that shift something?</h1>
+                        <h1>
+                            <FlipText text="Did that shift something?" />
+                        </h1>
 
                         {streak != null && (
                             <p className="streak-bump">

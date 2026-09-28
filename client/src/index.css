@@ -3532,3 +3532,85 @@ select:focus-visible {
         scroll-behavior: auto !important;
     }
 }
+
+/* ============================================================
+   Slide to confirm — high-intent CTA (see SlideToConfirm.jsx)
+   ============================================================ */
+.slide-confirm {
+    position: relative;
+    width: 100%;
+    height: 60px;
+    margin-top: var(--space-3);
+    border-radius: 999px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border-strong);
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.slide-confirm-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 56px;
+    background: var(--accent);
+    border-radius: 999px;
+    z-index: 1;
+}
+.slide-confirm-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    pointer-events: none;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    /* fade the prompt out as the handle advances */
+    opacity: calc(1 - min(1, var(--slide-progress, 0) * 1.4));
+}
+.slide-confirm.is-done .slide-confirm-label {
+    color: var(--on-accent);
+    opacity: 1;
+}
+.slide-confirm-handle {
+    position: absolute;
+    left: 4px;
+    top: 4px;
+    width: 52px;
+    height: 52px;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    border: none;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 22px;
+    line-height: 1;
+    cursor: grab;
+    /* keep vertical scroll from stealing the horizontal drag on touch */
+    touch-action: none;
+}
+.slide-confirm-handle:active {
+    cursor: grabbing;
+}
+.slide-confirm-handle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+.slide-confirm.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Flip-in heading reveal (see FlipText.jsx) */
+.flip-word {
+    display: inline-block;
+    will-change: transform, opacity;
+}

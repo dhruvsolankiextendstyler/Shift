@@ -23,6 +23,7 @@ import History from "./pages/History";
 import Insights from "./pages/Insights";
 import MobileShell from "./components/MobileShell";
 import Modal from "./components/Modal";
+import TapDroplets from "./components/TapDroplets";
 
 function AppShell() {
     const { user, loading, logout: rawLogout } = useAuth();
@@ -209,6 +210,7 @@ function App() {
         <ToastProvider>
             <AuthProvider>
                 <AppShell />
+                <TapDroplets />
             </AuthProvider>
         </ToastProvider>
     );
