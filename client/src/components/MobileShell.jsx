@@ -378,7 +378,7 @@ function MobileShell({ user, logout }) {
             <div className="insights-page">
                 <div className="page-heading">
                     <div>
-                        <p className="eyebrow">◈ INSIGHTS</p>
+                        <p className="eyebrow">✦ INSIGHTS</p>
                         <h1>
                             {
                                 INSIGHTS_TABS.find((t) => t.id === sub)

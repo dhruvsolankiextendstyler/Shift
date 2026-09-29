@@ -809,7 +809,7 @@ function Insights() {
         <div className="insights-page">
             <div className="page-heading">
                 <div>
-                    <p className="eyebrow">◈ THE BIGGER PICTURE</p>
+                    <p className="eyebrow">✦ THE BIGGER PICTURE</p>
                     <h1>Insights</h1>
                     <p className="page-description">
                         The story your moves tell over time.

@@ -331,7 +331,7 @@ function FocusLock({ actionId, task, startedAt }) {
                             </svg>
                         </div>
 
-                        <p className="eyebrow">✧ QUICK GUT CHECK</p>
+                        <p className="eyebrow">✦ QUICK GUT CHECK</p>
 
                         <h1>
                             <FlipText text="Did that shift something?" />

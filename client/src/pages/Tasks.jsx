@@ -197,7 +197,7 @@ function Tasks() {
 
             <div className="page-heading">
                 <div>
-                    <p className="eyebrow">◆ YOUR ACTION POOL</p>
+                    <p className="eyebrow">✦ YOUR ACTION POOL</p>
                     <h1>Tasks</h1>
                     <p className="page-description">
                         Stock the pool. SHIFT reaches in here the

@@ -186,7 +186,7 @@ function Downtime({ open, onClose }) {
                         aria-label="Close downtime"
                         onClick={onClose}
                     >
-                        ←
+                        &lt;
                     </button>
                 </div>
 
@@ -231,10 +231,6 @@ function Downtime({ open, onClose }) {
                         />
                     </div>
                 </div>
-
-                <span className="dt-hint" aria-hidden="true">
-                    ↑
-                </span>
             </div>
         </Modal>
     );

@@ -24,9 +24,12 @@
     --on-accent: #0b0f14;
 
     /* Typography scale */
-    --font: Arial, sans-serif;
-    /* Wordmark only — a modern geometric face, distinct from the body Arial. */
+    --font: "Montserrat", "Segoe UI", system-ui, sans-serif;
+    /* Wordmark only — same geometric face, tuned with heavier tracking. */
     --font-brand: "Montserrat", "Segoe UI", system-ui, sans-serif;
+    /* Titles/headings share the wordmark face so the type hierarchy reads as
+       one system: display for titles, Arial for body/metadata. */
+    --font-display: var(--font-brand);
     --text-xs: 12px;
     --text-sm: 13px;
     --text-base: 14px;
@@ -78,6 +81,13 @@
     --dur-fast: 0.16s;
     --dur: 0.28s;
     --dur-slow: 0.5s;
+
+    /* Elevation — three ambient depths + one accent glow. Use these instead of
+       ad-hoc box-shadows so depth stays consistent across the app. */
+    --shadow-1: 0 8px 20px -12px rgba(0, 0, 0, 0.6);
+    --shadow-2: 0 14px 32px -14px rgba(0, 0, 0, 0.7);
+    --shadow-3: 0 26px 56px -20px rgba(0, 0, 0, 0.82);
+    --shadow-accent: 0 10px 24px -12px rgba(245, 245, 245, 0.3);
 }
 
 /* ============================================================
@@ -363,6 +373,18 @@ select:focus-visible {
     letter-spacing: 2px;
     color: var(--text-muted);
     text-transform: uppercase;
+}
+
+/* Title tier — the display face on every top-level heading, so titles read as
+   one distinctive voice while body/metadata stay in the system font. */
+.hero h1,
+.recommendation-card h1,
+.page-heading h1,
+.not-found h1,
+.read-heading,
+.vocab-word,
+.modal-title {
+    font-family: var(--font-display);
 }
 
 .subtitle {
@@ -1187,7 +1209,7 @@ select:focus-visible {
     background: var(--surface-raised);
     border: 1px solid var(--border-strong);
     border-radius: var(--radius);
-    box-shadow: 0 20px 44px -18px rgba(0, 0, 0, 0.8);
+    box-shadow: var(--shadow-3);
     animation: pop-in var(--dur-fast) var(--ease-out) both;
 }
 
@@ -2414,7 +2436,7 @@ select:focus-visible {
     background: var(--surface-raised);
     border: 1px solid var(--border-strong);
     border-left: 3px solid var(--border-hover);
-    box-shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.7);
+    box-shadow: var(--shadow-2);
     animation: toast-in var(--dur) var(--ease-spring) both;
 }
 
@@ -2630,7 +2652,7 @@ select:focus-visible {
     -webkit-backdrop-filter: blur(20px) saturate(150%);
     backdrop-filter: blur(20px) saturate(150%);
     border-radius: var(--radius-lg);
-    box-shadow: 0 24px 50px -18px rgba(0, 0, 0, 0.8);
+    box-shadow: var(--shadow-3);
     padding: var(--space-3);
     transform-origin: top right;
     animation: pop-in var(--dur) var(--ease-spring) both;
@@ -3100,7 +3122,7 @@ select:focus-visible {
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-lg);
     padding: var(--space-5);
-    box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
+    box-shadow: var(--shadow-3);
     animation: pop-in var(--dur) var(--ease-spring) both;
 }
 
@@ -3174,7 +3196,7 @@ select:focus-visible {
     align-items: center;
     justify-content: center;
     gap: 5px;
-    box-shadow: 0 14px 30px -10px rgba(0, 0, 0, 0.7);
+    box-shadow: var(--shadow-2);
     animation: fade-up var(--dur) var(--ease-out) both,
         glow-breathe 4s var(--ease-in-out) infinite;
     transition: transform var(--dur) var(--ease-spring),
@@ -3292,7 +3314,7 @@ select:focus-visible {
         border: 1px solid var(--border);
         border-radius: var(--radius-lg);
         overflow: hidden;
-        box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.85);
+        box-shadow: var(--shadow-3);
     }
 }
 
@@ -3847,24 +3869,4 @@ select:focus-visible {
     min-height: 0;
 }
 
-.dt-hint {
-    position: absolute;
-    left: 50%;
-    bottom: 12px;
-    color: var(--text-dim);
-    font-size: var(--text-lg);
-    pointer-events: none;
-    animation: dt-bob 1.8s var(--ease-in-out) infinite;
-}
 
-@keyframes dt-bob {
-    0%,
-    100% {
-        transform: translate(-50%, 0);
-        opacity: 0.35;
-    }
-    50% {
-        transform: translate(-50%, -6px);
-        opacity: 0.8;
-    }
-}

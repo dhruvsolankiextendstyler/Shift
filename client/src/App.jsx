@@ -44,7 +44,7 @@ function AppShell() {
     if (loading) {
         return (
             <div className="app">
-                <p className="app-loading">Powering up SHIFT ⚡</p>
+                <p className="app-loading">Powering up SHIFT</p>
             </div>
         );
     }
@@ -193,7 +193,7 @@ function NotFound() {
 function Footer() {
     return (
         <footer className="footer">
-            <span>SHIFT ⚡ — momentum on demand</span>
+            <span>SHIFT — momentum on demand</span>
             <a
                 href="https://dhruv-solanki-about.vercel.app/"
                 target="_blank"
