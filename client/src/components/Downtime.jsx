@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Modal from "./Modal";
 import DowntimeFeed from "./DowntimeFeed";
 import {
@@ -91,10 +91,21 @@ const TABS = [
     { id: "articles", label: "Articles" }
 ];
 
+// A tab switch fires only on a decisive horizontal swipe: the finger has to
+// travel at least SWIPE_MIN px AND move mostly sideways (dx beats dy by
+// SWIPE_RATIO). Anything shorter or more vertical is left to the native
+// vertical scroll of the feed underneath — that's what keeps the two gestures
+// from stepping on each other.
+const SWIPE_MIN = 55;
+const SWIPE_RATIO = 1.4;
+
 // Full-screen downtime discovery. Rendered inside Modal (variant="sheet") so it
 // inherits the proven back-button parking (device Back → close → NOW, never
 // exit), Escape, scroll-lock and portal — no second navigation system. Two
-// tabs, each its own vertical swipe feed.
+// tabs sit side by side in a horizontal track: tap a tab, arrow-key it, or
+// swipe sideways. Both feeds stay mounted, so switching keeps each one's scroll
+// position and buffer. Vertical swipes fall through to each feed's own snap
+// scroll.
 function Downtime({ open, onClose }) {
     const [tab, setTab] = useState("words");
     const tabIndex = TABS.findIndex((t) => t.id === tab);
@@ -106,16 +117,46 @@ function Downtime({ open, onClose }) {
         []
     );
 
+    const go = (dir) => {
+        const next = tabIndex + dir;
+        if (next >= 0 && next < TABS.length) setTab(TABS[next].id);
+    };
+
     const onTabKey = (e) => {
         if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
         e.preventDefault();
-        const dir = e.key === "ArrowRight" ? 1 : -1;
-        setTab(TABS[(tabIndex + dir + TABS.length) % TABS.length].id);
+        go(e.key === "ArrowRight" ? 1 : -1);
+    };
+
+    // touchstart records the finger; touchend decides. We never preventDefault,
+    // so the feed's native vertical scroll is untouched — a sideways flick just
+    // gets classified after the fact and, if it's clearly horizontal, flips the
+    // tab. Multi-touch (pinch/zoom) is ignored.
+    const touchRef = useRef(null);
+    const onTouchStart = (e) => {
+        if (e.touches.length !== 1) {
+            touchRef.current = null;
+            return;
+        }
+        touchRef.current = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY
+        };
+    };
+    const onTouchEnd = (e) => {
+        const start = touchRef.current;
+        touchRef.current = null;
+        if (!start || e.changedTouches.length !== 1) return;
+        const dx = e.changedTouches[0].clientX - start.x;
+        const dy = e.changedTouches[0].clientY - start.y;
+        if (Math.abs(dx) < SWIPE_MIN) return;
+        if (Math.abs(dx) < Math.abs(dy) * SWIPE_RATIO) return;
+        go(dx < 0 ? 1 : -1); // swipe left → next (Words → Articles)
     };
 
     return (
         <Modal open={open} onClose={onClose} variant="sheet" labelledBy="dt-title">
-            <div className="dt-shell">
+            <div className="dt-shell" style={{ "--dt-tab": tabIndex }}>
                 <div className="dt-head">
                     <div
                         className="dt-tabs"
@@ -149,30 +190,47 @@ function Downtime({ open, onClose }) {
                     </button>
                 </div>
 
-                {tab === "words" ? (
-                    <DowntimeFeed
-                        key="words"
-                        snap="mandatory"
-                        fetchNext={fetchWordItem}
-                        keyOf={(w) => w.word}
-                        titleOf={(w) => w.word}
-                        logKind="vocab"
-                        loadingLabel="Forging words worth keeping…"
-                        renderItem={(w) => <WordCard entry={w} />}
-                    />
-                ) : (
-                    <DowntimeFeed
-                        key="articles"
-                        snap="proximity"
-                        cardClass="dt-card--article"
-                        fetchNext={fetchArticleItem}
-                        keyOf={(a) => a.topic}
-                        titleOf={(a) => a.title}
-                        logKind="read"
-                        loadingLabel="Pulling something worth your minutes…"
-                        renderItem={(a) => <ArticleCard article={a} />}
-                    />
-                )}
+                <div
+                    className="dt-track"
+                    onTouchStart={onTouchStart}
+                    onTouchEnd={onTouchEnd}
+                >
+                    <div
+                        className="dt-pane"
+                        role="tabpanel"
+                        aria-hidden={tab !== "words"}
+                        inert={tab !== "words"}
+                    >
+                        <DowntimeFeed
+                            key="words"
+                            snap="mandatory"
+                            fetchNext={fetchWordItem}
+                            keyOf={(w) => w.word}
+                            titleOf={(w) => w.word}
+                            logKind="vocab"
+                            loadingLabel="Forging words worth keeping…"
+                            renderItem={(w) => <WordCard entry={w} />}
+                        />
+                    </div>
+                    <div
+                        className="dt-pane"
+                        role="tabpanel"
+                        aria-hidden={tab !== "articles"}
+                        inert={tab !== "articles"}
+                    >
+                        <DowntimeFeed
+                            key="articles"
+                            snap="mandatory"
+                            cardClass="dt-card--article"
+                            fetchNext={fetchArticleItem}
+                            keyOf={(a) => a.topic}
+                            titleOf={(a) => a.title}
+                            logKind="read"
+                            loadingLabel="Pulling something worth your minutes…"
+                            renderItem={(a) => <ArticleCard article={a} />}
+                        />
+                    </div>
+                </div>
 
                 <span className="dt-hint" aria-hidden="true">
                     ↑

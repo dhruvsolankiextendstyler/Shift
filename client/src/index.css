@@ -25,6 +25,8 @@
 
     /* Typography scale */
     --font: Arial, sans-serif;
+    /* Wordmark only — a modern geometric face, distinct from the body Arial. */
+    --font-brand: "Montserrat", "Segoe UI", system-ui, sans-serif;
     --text-xs: 12px;
     --text-sm: 13px;
     --text-base: 14px;
@@ -231,13 +233,11 @@ select:focus-visible {
 }
 
 .logo {
+    font-family: var(--font-brand);
     font-size: 22px;
     font-weight: 700;
-    letter-spacing: 1px;
-}
-
-.logo span {
-    margin-left: 4px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
 }
 
 .navbar nav {
@@ -279,15 +279,6 @@ select:focus-visible {
 .navbar nav a:hover::after,
 .navbar nav a.active::after {
     transform: scaleX(1);
-}
-
-.logo span {
-    display: inline-block;
-    transition: transform var(--dur) var(--ease-spring);
-}
-
-.logo:hover span {
-    transform: rotate(-12deg) scale(1.2);
 }
 
 .nav-user {
@@ -2573,14 +2564,18 @@ select:focus-visible {
 .mobile-logo {
     justify-self: center;
     text-align: center;
+    font-family: var(--font-brand);
     font-size: 20px;
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    /* letter-spacing adds a trailing gap after the last glyph; indent by the
+       same amount so the wordmark stays optically centred. */
+    text-indent: 0.3em;
     background: none;
     border: none;
     padding: 4px 8px;
     color: inherit;
-    font-family: inherit;
     cursor: pointer;
     transition: transform var(--dur-fast) var(--ease-out),
         opacity var(--dur-fast) var(--ease-out);
@@ -2589,10 +2584,6 @@ select:focus-visible {
 .mobile-logo:active {
     transform: scale(0.94);
     opacity: 0.7;
-}
-
-.mobile-logo span {
-    display: inline-block;
 }
 
 .mobile-header-spacer {
@@ -3290,7 +3281,7 @@ select:focus-visible {
     max-width: 720px;
     background: var(--bg);
     display: flex;
-    animation: sheet-up var(--dur-slow) var(--ease-out) both;
+    animation: sheet-up 0.34s var(--ease-out) both;
 }
 
 @media (min-width: 701px) {
@@ -3305,14 +3296,48 @@ select:focus-visible {
     }
 }
 
+/* Bottom-sheet rise/fall. Duration matches Modal's SHEET_MS so the exit slide
+   is fully seen before the component unmounts. */
 @keyframes sheet-up {
     from {
-        opacity: 0;
-        transform: translateY(24px);
+        transform: translateY(100%);
     }
     to {
-        opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@keyframes sheet-down {
+    from {
+        transform: translateY(0);
+    }
+    to {
+        transform: translateY(100%);
+    }
+}
+
+@keyframes fade-out {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+.modal-sheet.modal-closing .modal-panel {
+    animation: sheet-down 0.34s var(--ease-out) both;
+}
+
+.modal-backdrop.modal-closing {
+    animation: fade-out 0.34s var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .modal-sheet .modal-panel,
+    .modal-sheet.modal-closing .modal-panel,
+    .modal-backdrop.modal-closing {
+        animation: none;
     }
 }
 
@@ -3680,6 +3705,33 @@ select:focus-visible {
     transform: translateX(calc(var(--dt-tab, 0) * 100%));
     transition: transform var(--dur) var(--ease-spring);
 }
+/* Horizontal track holding both feeds side by side. --dt-tab (0|1, set on
+   .dt-shell) slides the active pane in; overflow:hidden clips the other one so
+   it never leaks a horizontal scrollbar. Vertical scrolling lives inside each
+   pane's .dt-feed, so the transform here doesn't touch it. */
+.dt-track {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    overflow: hidden;
+    transform: translateX(calc(var(--dt-tab, 0) * -100%));
+    transition: transform var(--dur) var(--ease-out);
+}
+
+.dt-pane {
+    flex: 0 0 100%;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dt-track {
+        transition: none;
+    }
+}
+
 .dt-feed {
     flex: 1;
     min-height: 0;
@@ -3687,6 +3739,15 @@ select:focus-visible {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     scroll-behavior: smooth;
+    /* Scroll, but no visible scrollbar — Firefox, legacy Edge, then WebKit. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.dt-feed::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 .dt-feed--mandatory {
@@ -3709,8 +3770,15 @@ select:focus-visible {
     animation: fade-up var(--dur) var(--ease-out) both;
 }
 
+/* Articles are pinned to exactly one page and dressed as a distinct raised
+   card, so "article 1 ends / article 2 begins" is unmistakable and nobody gets
+   trapped scrolling a wall of text between snaps. Prose that overruns the page
+   is clipped with a soft bottom fade; the always-visible "Read the full thing"
+   link carries the rest. A short article simply never reaches the fade zone. */
 .dt-card--article {
-    justify-content: flex-start;
+    height: 100%;
+    justify-content: stretch;
+    padding: var(--space-4);
 }
 
 /* Constrain reading width on wide screens so it isn't a stretched phone. */
@@ -3719,6 +3787,45 @@ select:focus-visible {
     width: 100%;
     max-width: 640px;
     margin: 0 auto;
+}
+
+.dt-card--article .dt-article {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    padding: var(--space-5) var(--space-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 12px 34px -22px rgba(0, 0, 0, 0.75);
+}
+
+.dt-card--article .read-thumb {
+    flex-shrink: 0;
+    max-height: 26vh;
+    margin-bottom: var(--space-3);
+}
+
+.dt-card--article .read-extract {
+    flex: 1;
+    min-height: 0;
+    margin-bottom: var(--space-3);
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        #000 calc(100% - 52px),
+        transparent
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        #000 calc(100% - 52px),
+        transparent
+    );
+}
+
+.dt-card--article .read-more {
+    flex-shrink: 0;
 }
 
 .dt-status {

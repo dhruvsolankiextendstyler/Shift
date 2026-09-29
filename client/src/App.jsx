@@ -140,7 +140,7 @@ function DesktopApp({ user, logout }) {
         <div className="app">
             <header className="navbar">
                 <Link to="/" className="logo">
-                    SHIFT <span>⚡</span>
+                    SHIFT
                 </Link>
 
                 <nav>

@@ -409,7 +409,7 @@ function MobileShell({ user, logout }) {
                         goTo(0);
                     }}
                 >
-                    SHIFT <span>⚡</span>
+                    SHIFT
                 </button>
 
                 <span className="mobile-header-spacer" />
