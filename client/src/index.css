@@ -3614,3 +3614,150 @@ select:focus-visible {
     display: inline-block;
     will-change: transform, opacity;
 }
+
+/* ============================================================
+   Downtime discovery — full-screen swipe feed (Words / Articles).
+   Reuses the .tools-dial / .tools-fab launcher and the existing
+   read- and vocab- card typography; only the feed + tab chrome
+   is new here.
+   ============================================================ */
+
+.tools-fab--solo svg {
+    width: 26px;
+    height: 26px;
+}
+
+.dt-shell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+.dt-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4) var(--space-2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.dt-tabs {
+    position: relative;
+    display: flex;
+    width: 220px;
+    max-width: 60%;
+}
+
+.dt-tab {
+    flex: 1;
+    padding: 10px 0;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: var(--text-sm);
+    transition: color var(--dur) var(--ease-out);
+}
+
+.dt-tab.active {
+    color: var(--text);
+}
+
+.dt-tab-underline {
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 50%;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px;
+    transform: translateX(calc(var(--dt-tab, 0) * 100%));
+    transition: transform var(--dur) var(--ease-spring);
+}
+.dt-feed {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scroll-behavior: smooth;
+}
+
+.dt-feed--mandatory {
+    scroll-snap-type: y mandatory;
+}
+
+.dt-feed--proximity {
+    scroll-snap-type: y proximity;
+}
+
+.dt-card {
+    box-sizing: border-box;
+    min-height: 100%;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: var(--space-5) var(--space-4);
+    animation: fade-up var(--dur) var(--ease-out) both;
+}
+
+.dt-card--article {
+    justify-content: flex-start;
+}
+
+/* Constrain reading width on wide screens so it isn't a stretched phone. */
+.dt-word,
+.dt-article {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.dt-status {
+    margin: auto;
+    text-align: center;
+    padding: var(--space-6) var(--space-4);
+}
+
+.dt-tail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-5) var(--space-4);
+    scroll-snap-align: start;
+}
+
+.dt-tail .shift-button {
+    min-height: 0;
+}
+
+.dt-hint {
+    position: absolute;
+    left: 50%;
+    bottom: 12px;
+    color: var(--text-dim);
+    font-size: var(--text-lg);
+    pointer-events: none;
+    animation: dt-bob 1.8s var(--ease-in-out) infinite;
+}
+
+@keyframes dt-bob {
+    0%,
+    100% {
+        transform: translate(-50%, 0);
+        opacity: 0.35;
+    }
+    50% {
+        transform: translate(-50%, -6px);
+        opacity: 0.8;
+    }
+}
