@@ -3,26 +3,12 @@ import { apiFetch } from "../services/api";
 import { useToast } from "../context/ToastContext";
 import ErrorState from "../components/ErrorState";
 import Modal from "../components/Modal";
-import Select from "../components/Select";
+import TaskFormFields, {
+    PRIORITY_OPTIONS,
+    EFFORT_OPTIONS,
+    TYPE_OPTIONS
+} from "../components/TaskFormFields";
 
-const PRIORITY_OPTIONS = [
-    { value: "low", label: "Low" },
-    { value: "medium", label: "Medium" },
-    { value: "high", label: "High" }
-];
-
-// Effort = how much energy the task DEMANDS. SHIFT matches this against the
-// energy you report at check-in. Priority (above) is importance, not energy.
-const EFFORT_OPTIONS = [
-    { value: "low", label: "Low — light lift" },
-    { value: "medium", label: "Medium" },
-    { value: "high", label: "High — heavy lift" }
-];
-
-const TYPE_OPTIONS = [
-    { value: "oneoff", label: "One-time — clears once done" },
-    { value: "permanent", label: "Permanent — stays, counts every time" }
-];
 
 function Tasks() {
     const { toast } = useToast();
@@ -197,7 +183,7 @@ function Tasks() {
 
             <div className="page-heading">
                 <div>
-                    <p className="eyebrow">✦ YOUR ACTION POOL</p>
+                    <p className="eyebrow">YOUR ACTION POOL</p>
                     <h1>Tasks</h1>
                     <p className="page-description">
                         Stock the pool. SHIFT reaches in here the
@@ -236,84 +222,16 @@ function Tasks() {
 
                 <div className="task-form">
 
-                    <div className="input-group">
-                        <label>Task</label>
-
-                        <input
-                            placeholder="e.g. Practice React"
-                            value={title}
-                            onChange={(e) =>
-                                setTitle(e.target.value)
-                            }
-                        />
-                    </div>
-
-                    <div className="form-row">
-
-                        <div className="input-group">
-                            <label>Category</label>
-
-                            <input
-                                placeholder="e.g. CS"
-                                list="category-options"
-                                value={category}
-                                onChange={(e) =>
-                                    setCategory(e.target.value)
-                                }
-                            />
-
-                            <datalist id="category-options">
-                                {categoryOptions.map((c) => (
-                                    <option key={c} value={c} />
-                                ))}
-                            </datalist>
-                        </div>
-
-                        <div className="input-group">
-                            <label>Time</label>
-
-                            <input
-                                type="number"
-                                min="1"
-                                placeholder="Minutes"
-                                value={estimatedTime}
-                                onChange={(e) =>
-                                    setEstimatedTime(e.target.value)
-                                }
-                            />
-                        </div>
-
-                        <div className="input-group">
-                            <label>Priority</label>
-
-                            <Select
-                                value={priority}
-                                onChange={setPriority}
-                                options={PRIORITY_OPTIONS}
-                            />
-                        </div>
-
-                        <div className="input-group">
-                            <label>Effort</label>
-
-                            <Select
-                                value={effort}
-                                onChange={setEffort}
-                                options={EFFORT_OPTIONS}
-                            />
-                        </div>
-
-                    </div>
-
-                    <div className="input-group">
-                        <label>Type</label>
-
-                        <Select
-                            value={type}
-                            onChange={setType}
-                            options={TYPE_OPTIONS}
-                        />
-                    </div>
+                    <TaskFormFields
+                        title={title}           setTitle={setTitle}
+                        category={category}     setCategory={setCategory}
+                        estimatedTime={estimatedTime} setEstimatedTime={setEstimatedTime}
+                        priority={priority}     setPriority={setPriority}
+                        effort={effort}         setEffort={setEffort}
+                        type={type}             setType={setType}
+                        categoryOptions={categoryOptions}
+                        datalistId="tasks-category-opts"
+                    />
 
                     <button
                         className="primary-button"

@@ -177,7 +177,7 @@ function Now({ active = true }) {
                 <section className="checkin-card">
 
                     <div className="hero">
-                        <p className="eyebrow">✦ MOMENTUM ON DEMAND</p>
+                        <p className="eyebrow">MOMENTUM ON DEMAND</p>
 
                         <h1>
                             <FlipText text="One move. That's all it takes." />

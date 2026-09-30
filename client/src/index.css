@@ -3869,4 +3869,109 @@ select:focus-visible {
     min-height: 0;
 }
 
+/* ============================================================
+   Feature: Password show/hide toggle (Auth page)
+   ============================================================ */
 
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* The input inside .password-wrapper fills the wrapper and leaves room on the
+   right for the eye-toggle button (≈ 2.75rem). */
+.password-wrapper input {
+    width: 100%;
+    padding-right: 2.75rem;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-radius: 0 9px 9px 0;
+    transition: color var(--dur) var(--ease-out),
+                background var(--dur) var(--ease-out);
+}
+
+.password-toggle:hover {
+    color: var(--text-muted);
+    background: rgba(245, 245, 245, 0.06);
+}
+
+.password-toggle:active {
+    color: var(--text);
+}
+
+.password-toggle svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   Feature: Add Completed Task (History page)
+   ============================================================ */
+
+/* Button in the page-heading — inherits secondary-button but resets margin. */
+.history-add-btn {
+    margin: 0;
+    white-space: nowrap;
+    font-size: var(--text-sm);
+    padding: 11px 18px;
+}
+
+/* Full-width on small screens, where page-heading stacks vertically. */
+@media (max-width: 700px) {
+    .history-add-btn {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+.add-task-modal {
+    width: 100%;
+}
+
+.add-task-modal-sub {
+    margin: -8px 0 var(--space-4);
+    color: var(--text-dim);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+}
+
+/* Inline validation error inside the add-task form */
+.add-task-error {
+    color: var(--worse-text);
+    font-size: var(--text-sm);
+    margin: 0;
+    animation: fade-up var(--dur) var(--ease-out) both;
+}
+
+/* "self-logged" badge on cal-detail items from manual entry */
+.cal-item-manual-badge {
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 6px;
+    border-radius: 4px;
+    background: var(--warn-tint);
+    color: var(--warn-text);
+    flex-shrink: 0;
+}
+
+/* Widen the modal panel for the task form — it has more fields than the
+   default confirm dialog. :has() is supported in all modern browsers. */
+.modal-dialog .modal-panel:has(.add-task-modal) {
+    width: min(580px, 100%);
+}

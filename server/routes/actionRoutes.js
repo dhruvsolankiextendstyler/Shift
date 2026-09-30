@@ -38,6 +38,57 @@ router.post("/", async (req, res) => {
     }
 });
 
+// MANUAL COMPLETED ACTION — record a task the user finished independently.
+// Creates the Task (applying the same rules as the Tasks page) and a
+// pre-completed Action in one call, so History / Insights see it immediately.
+router.post("/manual", async (req, res) => {
+    try {
+        const { title, category, estimatedTime, priority, effort, type, completedAt } = req.body;
+
+        if (!title || !category || !estimatedTime) {
+            return res.status(400).json({ error: "Title, category, and time are required." });
+        }
+
+        const resolvedAt = completedAt ? new Date(completedAt) : new Date();
+        if (Number.isNaN(resolvedAt.getTime())) {
+            return res.status(400).json({ error: "Invalid completedAt date." });
+        }
+
+        // One-off tasks become "completed" immediately; permanent tasks stay
+        // active but get their completionCount bumped (same as the Now flow).
+        const taskType   = type === "permanent" ? "permanent" : "oneoff";
+        const taskStatus = taskType === "permanent" ? "active" : "completed";
+
+        const task = await Task.create({
+            user:          req.userId,
+            title:         title.trim(),
+            category:      category.trim(),
+            estimatedTime: Number(estimatedTime),
+            priority:      priority  || "medium",
+            effort:        effort    || "medium",
+            type:          taskType,
+            status:        taskStatus,
+            completionCount: taskType === "permanent" ? 1 : 0
+        });
+
+        const action = await Action.create({
+            user:        req.userId,
+            taskId:      task._id,
+            sessionId:   null,
+            source:      "manual",
+            status:      "completed",
+            startedAt:   resolvedAt,
+            completedAt: resolvedAt
+        });
+
+        // Populate taskId so the response mirrors GET /actions shape.
+        const populated = await Action.findById(action._id).populate("taskId");
+        res.status(201).json(populated);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
 // UPDATE ACTION
 router.put("/:id", async (req, res) => {
     try {

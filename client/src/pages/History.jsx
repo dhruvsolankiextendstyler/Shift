@@ -3,6 +3,8 @@ import { apiFetch } from "../services/api";
 import { reflectCompletionOnTask } from "../services/resolve";
 import { dayKey } from "./Insights";
 import ErrorState from "../components/ErrorState";
+import Modal from "../components/Modal";
+import TaskFormFields from "../components/TaskFormFields";
 
 // History is a calendar of everything the user has done — task actions (from
 // /actions) merged with downtime sessions (from /activity/history), the SAME
@@ -26,6 +28,7 @@ function mergeEntries(actions, activities) {
         category: a.taskId?.category || null,
         minutes: a.taskId?.estimatedTime ?? null,
         status: a.status,
+        source: a.source || "shift",
         note: a.note || "",
         date: new Date(a.completedAt || a.createdAt),
         action: a
@@ -37,6 +40,7 @@ function mergeEntries(actions, activities) {
         category: null,
         minutes: null,
         status: "completed",
+        source: "shift",
         note: "",
         date: new Date(v.completedAt)
     }));
@@ -111,6 +115,83 @@ function History({ active = true }) {
     }));
     const [selectedKey, setSelectedKey] = useState(todayKey);
     const [dir, setDir] = useState(0);
+
+    // ── Add Completed Task modal state ───────────────────────────────────────
+    const [addingTask, setAddingTask]           = useState(false);
+    const [addTitle, setAddTitle]               = useState("");
+    const [addCategory, setAddCategory]         = useState("");
+    const [addEstimatedTime, setAddEstimatedTime] = useState("");
+    const [addPriority, setAddPriority]         = useState("medium");
+    const [addEffort, setAddEffort]             = useState("medium");
+    const [addType, setAddType]                 = useState("oneoff");
+    const [addDate, setAddDate]                 = useState(todayKey);
+    const [addSaving, setAddSaving]             = useState(false);
+    const [addError, setAddError]               = useState("");
+
+    // Derive category suggestions from existing history entries — no extra fetch needed.
+    const existingCategories = useMemo(() => {
+        const cats = new Set(entries.map((e) => e.category).filter(Boolean));
+        return [...cats].sort((a, b) => a.localeCompare(b));
+    }, [entries]);
+
+    const openAddTask = () => {
+        // Pre-select the calendar's currently selected date.
+        setAddDate(selectedKey);
+        setAddTitle("");
+        setAddCategory("");
+        setAddEstimatedTime("");
+        setAddPriority("medium");
+        setAddEffort("medium");
+        setAddType("oneoff");
+        setAddError("");
+        setAddingTask(true);
+    };
+
+    const saveManualTask = async () => {
+        if (!addTitle.trim() || !addCategory.trim() || !addEstimatedTime) {
+            setAddError("Task name, category, and time are all required.");
+            return;
+        }
+        if (Number(addEstimatedTime) < 1) {
+            setAddError("Time must be at least 1 minute.");
+            return;
+        }
+
+        setAddSaving(true);
+        setAddError("");
+
+        try {
+            // Build an ISO timestamp at noon on the selected date so timezone
+            // shifts don't accidentally push it to the wrong calendar day.
+            const completedAt = new Date(`${addDate}T12:00:00`).toISOString();
+
+            const res = await apiFetch("/actions/manual", {
+                method: "POST",
+                body: JSON.stringify({
+                    title:         addTitle.trim(),
+                    category:      addCategory.trim(),
+                    estimatedTime: Number(addEstimatedTime),
+                    priority:      addPriority,
+                    effort:        addEffort,
+                    type:          addType,
+                    completedAt
+                })
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || "Failed to save — please try again.");
+            }
+
+            setAddingTask(false);
+            await reload(); // refresh the calendar & detail panel
+        } catch (err) {
+            setAddError(err.message);
+        } finally {
+            setAddSaving(false);
+        }
+    };
+    // ────────────────────────────────────────────────────────────────────────
 
     // Re-pull when the History tab is re-entered on mobile (the slide never
     // unmounts), so a just-finished activity shows without a manual reload.
@@ -207,6 +288,13 @@ function History({ active = true }) {
                     Every move you've made, mapped across your days.
                 </p>
             </div>
+            <button
+                className="secondary-button history-add-btn"
+                onClick={openAddTask}
+                id="history-add-task-btn"
+            >
+                + Add Completed Task
+            </button>
         </div>
     );
 
@@ -229,9 +317,27 @@ function History({ active = true }) {
                     <h2>Your story starts with one move.</h2>
                     <p>
                         Finish a task, a Deep Read, or a Word Forge word
-                        and it lights up here — day by day.
+                        and it lights up here — day by day. Or add one you already
+                        completed with the button above.
                     </p>
                 </div>
+
+                {/* Add Completed Task modal — available even from the empty state */}
+                <AddTaskModal
+                    open={addingTask}
+                    onClose={() => setAddingTask(false)}
+                    addTitle={addTitle}             setAddTitle={setAddTitle}
+                    addCategory={addCategory}       setAddCategory={setAddCategory}
+                    addEstimatedTime={addEstimatedTime} setAddEstimatedTime={setAddEstimatedTime}
+                    addPriority={addPriority}       setAddPriority={setAddPriority}
+                    addEffort={addEffort}           setAddEffort={setAddEffort}
+                    addType={addType}               setAddType={setAddType}
+                    addDate={addDate}               setAddDate={setAddDate}
+                    addSaving={addSaving}
+                    addError={addError}
+                    onSave={saveManualTask}
+                    categoryOptions={existingCategories}
+                />
             </div>
         );
     }
@@ -350,6 +456,11 @@ function History({ active = true }) {
                                             <span className="cal-item-kind">
                                                 {KIND_META[e.kind].label}
                                             </span>
+                                            {e.source === "manual" && (
+                                                <span className="cal-item-manual-badge">
+                                                    self-logged
+                                                </span>
+                                            )}
                                             {e.status &&
                                                 e.status !== "completed" && (
                                                     <span
@@ -427,7 +538,110 @@ function History({ active = true }) {
                     )}
                 </section>
             </div>
+
+            {/* Add Completed Task modal */}
+            <AddTaskModal
+                open={addingTask}
+                onClose={() => setAddingTask(false)}
+                addTitle={addTitle}             setAddTitle={setAddTitle}
+                addCategory={addCategory}       setAddCategory={setAddCategory}
+                addEstimatedTime={addEstimatedTime} setAddEstimatedTime={setAddEstimatedTime}
+                addPriority={addPriority}       setAddPriority={setAddPriority}
+                addEffort={addEffort}           setAddEffort={setAddEffort}
+                addType={addType}               setAddType={setAddType}
+                addDate={addDate}               setAddDate={setAddDate}
+                addSaving={addSaving}
+                addError={addError}
+                onSave={saveManualTask}
+                categoryOptions={existingCategories}
+            />
         </div>
+    );
+}
+
+// ── Extracted modal so the JSX tree doesn't grow too deep ───────────────────
+function AddTaskModal({
+    open, onClose,
+    addTitle, setAddTitle,
+    addCategory, setAddCategory,
+    addEstimatedTime, setAddEstimatedTime,
+    addPriority, setAddPriority,
+    addEffort, setAddEffort,
+    addType, setAddType,
+    addDate, setAddDate,
+    addSaving, addError,
+    onSave,
+    categoryOptions
+}) {
+    return (
+        <Modal
+            open={open}
+            onClose={onClose}
+            labelledBy="add-task-title"
+            variant="dialog"
+        >
+            <div className="add-task-modal">
+                <div className="form-heading">
+                    <h2 id="add-task-title" className="modal-title">
+                        Log a completed task
+                    </h2>
+                    <button
+                        type="button"
+                        className="text-button"
+                        onClick={onClose}
+                        aria-label="Close"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <p className="add-task-modal-sub">
+                    Record something you already finished — it'll appear in
+                    History and count in Insights.
+                </p>
+
+                <div className="task-form">
+                    <TaskFormFields
+                        title={addTitle}             setTitle={setAddTitle}
+                        category={addCategory}       setCategory={setAddCategory}
+                        estimatedTime={addEstimatedTime} setEstimatedTime={setAddEstimatedTime}
+                        priority={addPriority}       setPriority={setAddPriority}
+                        effort={addEffort}           setEffort={setAddEffort}
+                        type={addType}               setType={setAddType}
+                        categoryOptions={categoryOptions}
+                        datalistId="history-category-opts"
+                    />
+
+                    {/* Date selector — defaults to the calendar's selected day */}
+                    <div className="input-group">
+                        <label>Date completed</label>
+                        <input
+                            type="date"
+                            value={addDate}
+                            max={new Date().toISOString().slice(0, 10)}
+                            onChange={(e) => setAddDate(e.target.value)}
+                        />
+                    </div>
+
+                    {addError && (
+                        <p className="add-task-error">{addError}</p>
+                    )}
+
+                    <button
+                        className="primary-button"
+                        onClick={onSave}
+                        disabled={addSaving}
+                        id="add-task-submit-btn"
+                    >
+                        {addSaving ? (
+                            <span className="btn-spinner" />
+                        ) : (
+                            "Save completed task"
+                        )}
+                    </button>
+                </div>
+            </div>
+        </Modal>
     );
 }
 

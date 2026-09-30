@@ -384,11 +384,14 @@ export function useInsightsData() {
             .map(([label, value]) => ({ label, value }));
 
         // Daily counts (heatmap + overall streak)
+        // Use completedAt when available so manually-backdated actions land on
+        // the correct calendar day, not the day they were entered.
         const dayCounts = {};   
         const activeDays = new Set();
         actions.forEach((a) => {
-            if (a.createdAt) {
-                const key = dayKey(a.createdAt);
+            const ref = a.completedAt || a.createdAt;
+            if (ref) {
+                const key = dayKey(ref);
                 dayCounts[key] = (dayCounts[key] || 0) + 1;
                 if (a.status === "completed") activeDays.add(key);
             }
@@ -418,8 +421,10 @@ export function useInsightsData() {
         const weekdayCounts = Array(7).fill(0);
         const bucketCounts = TIME_BUCKETS.map(() => 0);
         actions.forEach((a) => {
-            if (a.status !== "completed" || !a.createdAt) return;
-            const d = new Date(a.createdAt);
+            if (a.status !== "completed") return;
+            const ref = a.completedAt || a.createdAt;
+            if (!ref) return;
+            const d = new Date(ref);
             weekdayCounts[d.getDay()]++;
             const h = d.getHours();
             const bi = TIME_BUCKETS.findIndex((b) => b.test(h));
@@ -453,10 +458,12 @@ export function useInsightsData() {
         // Category-wise streaks (completed actions only)
         const catDays = {};
         actions.forEach((a) => {
-            if (a.status !== "completed" || !a.createdAt) return;
+            if (a.status !== "completed") return;
+            const ref = a.completedAt || a.createdAt;
+            if (!ref) return;
             const c = a.taskId?.category;
             if (!c) return;
-            (catDays[c] ||= new Set()).add(dayKey(a.createdAt));
+            (catDays[c] ||= new Set()).add(dayKey(ref));
         });
         const categoryStreaks = Object.entries(catDays)
             .map(([label, set]) => ({ label, ...computeStreak(set) }))
@@ -466,8 +473,9 @@ export function useInsightsData() {
         // Completion trend — last 8 weeks, rate per week
         const weekMap = {}; // weekStart(ISO date) -> { total, done, order }
         actions.forEach((a) => {
-            if (!a.createdAt) return;
-            const d = new Date(a.createdAt);
+            const ref = a.completedAt || a.createdAt;
+            if (!ref) return;
+            const d = new Date(ref);
             d.setHours(0, 0, 0, 0);
             d.setDate(d.getDate() - d.getDay()); // back to Sunday
             const key = dayKey(d);

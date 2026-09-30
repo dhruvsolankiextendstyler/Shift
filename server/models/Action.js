@@ -11,8 +11,16 @@ const actionSchema = new mongoose.Schema(
 
         sessionId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "Session",
-            required: true
+            ref: "Session"
+            // Not required — manually-logged completed tasks have no session.
+        },
+
+        // Where the action originated: "shift" = recommended by the engine,
+        // "manual" = user logged it themselves from History.
+        source: {
+            type: String,
+            enum: ["shift", "manual"],
+            default: "shift"
         },
 
         taskId: {
