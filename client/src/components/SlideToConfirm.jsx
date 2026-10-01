@@ -73,6 +73,13 @@ export default function SlideToConfirm({
     const trackWidth = () =>
         trackRef.current.clientWidth - handleRef.current.offsetWidth - 8;
 
+    // Stop the pointerdown from bubbling to any parent swipe-navigation
+    // (e.g. Embla carousel). The drag belongs exclusively to this slider;
+    // the parent must NOT interpret it as a page-swipe gesture.
+    const onTrackPointerDown = (e) => {
+        e.stopPropagation();
+    };
+
     const onPointerDown = (e) => {
         if (done || disabled) return;
         const max = trackWidth();
@@ -108,6 +115,7 @@ export default function SlideToConfirm({
         <div
             ref={trackRef}
             className={`slide-confirm ${done ? "is-done" : ""} ${disabled ? "is-disabled" : ""}`}
+            onPointerDown={onTrackPointerDown}
         >
             <span ref={fillRef} className="slide-confirm-fill" aria-hidden="true" />
             <span className="slide-confirm-label">{done ? confirmedLabel : label}</span>

@@ -1,6 +1,6 @@
 // Downtime content sources, lifted verbatim out of the old VocabBuilder /
 // ReadAnything modals so the new swipe feed reuses the exact fetch/parse logic
-// (Datamuse words + dictionaryapi.dev examples, Wikipedia articles) — only the
+// (Datamuse words + dictionaryapi.dev examples, Wikipedia articles) â€” only the
 // presentation changes. No React here.
 
 /* ---------- Word Forge (Datamuse) ---------- */
@@ -8,12 +8,49 @@
 const POS = { n: "noun", v: "verb", adj: "adjective", adv: "adverb", u: "" };
 
 function randomPattern() {
-    const len = 4 + Math.floor(Math.random() * 6); // 4–9 letters
+    const len = 4 + Math.floor(Math.random() * 6); // 4â€“9 letters
     return "?".repeat(len);
 }
 
-const fallbackSentence = (word) =>
-    `Try slipping “${word}” into a sentence today.`;
+// Guaranteed example sentence that actually USES the word, picked by part of
+// speech so it reads naturally. This is the floor: real per-sense examples from
+// dictionaryapi.dev get layered on top by applyExamples when that API is
+// reachable (it's flaky, and obscure Datamuse words often aren't in it), but
+// every meaning always has a non-empty, word-using sentence — never a generic
+// "use it in a sentence" prompt, never the definition echoed back.
+// ponytail: template fallback — swap for a backend Tatoeba proxy if real
+// sentences for every word become a hard quality requirement [[wordforge-sentence-sources]].
+const EXAMPLE_TEMPLATES = {
+    adjective: [
+        (w) => `His work was ${w} from start to finish.`,
+        (w) => `Few people are as ${w} as she is.`,
+        (w) => `They stayed ${w} even under real pressure.`
+    ],
+    verb: [
+        (w) => `They would ${w} whenever the moment called for it.`,
+        (w) => `He learned to ${w} without a second thought.`,
+        (w) => `We should ${w} before it's too late.`
+    ],
+    adverb: [
+        (w) => `She handled the whole thing ${w}, as always.`,
+        (w) => `They moved ${w} toward the door.`,
+        (w) => `It all came together ${w} in the end.`
+    ],
+    noun: [
+        (w) => `The ${w} caught everyone's attention.`,
+        (w) => `She spoke about the ${w} with real passion.`,
+        (w) => `No one could ignore the ${w} any longer.`
+    ]
+};
+
+// Deterministic pick (stable per word) from the set matching the part of
+// speech; unknown/blank pos falls back to the noun phrasing, which reads fine
+// for most words. `i` (meaning index) spreads multiple same-pos meanings of one
+// word across different templates instead of repeating the same sentence.
+function exampleFor(word, pos, i = 0) {
+    const set = EXAMPLE_TEMPLATES[pos] || EXAMPLE_TEMPLATES.noun;
+    return set[(word.length + i) % set.length](word);
+}
 
 // Real example sentences for `word`, grouped by part of speech. Best-effort:
 // a network error, CORS block, timeout, abort, or missing entry yields no
@@ -100,9 +137,9 @@ export async function nextWord() {
 
         return {
             word: pick.word,
-            meanings: meanings.map((m) => ({
+            meanings: meanings.map((m, i) => ({
                 ...m,
-                example: fallbackSentence(pick.word)
+                example: exampleFor(pick.word, m.pos, i)
             }))
         };
     }
@@ -144,7 +181,7 @@ const TOPIC_CATEGORIES = {
     futureTech: [
         "Artificial general intelligence", "Robotics", "Autonomous robot",
         "Self-driving car", "Quantum computing", "Quantum cryptography",
-        "Brain–computer interface", "Neuralink", "Space exploration", "Biotechnology",
+        "Brainâ€“computer interface", "Neuralink", "Space exploration", "Biotechnology",
         "CRISPR", "Nanotechnology", "Nuclear fusion", "Renewable energy",
         "Augmented reality", "Virtual reality", "3D printing", "Internet of things",
         "Blockchain"
@@ -203,13 +240,24 @@ function parseExtract(text) {
 
 // One fresh article. `excludeTopic` avoids an immediate repeat. Retries past
 // disambiguation/empty hits; throws if nothing usable turns up.
+// Each fetch is capped at 10 s so a slow network surfaces the error state
+// quickly instead of hanging the loading spinner indefinitely.
 export async function nextArticle(excludeTopic) {
     let last = excludeTopic;
     for (let attempt = 0; attempt < 5; attempt++) {
         const { topic, category } = randomTopic(last);
         last = topic;
 
-        const res = await fetch(API + encodeURIComponent(topic));
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 10000);
+        let res;
+        try {
+            res = await fetch(API + encodeURIComponent(topic), { signal: ctrl.signal });
+        } catch {
+            clearTimeout(timer);
+            continue; // timed out or network error — try next topic
+        }
+        clearTimeout(timer);
         if (!res.ok) continue;
         const data = await res.json();
         const page = Object.values(data.query.pages)[0];

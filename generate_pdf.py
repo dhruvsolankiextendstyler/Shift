@@ -1,0 +1,1611 @@
+import os
+import subprocess
+import time
+
+html_content = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SHIFT — Technical Specifications & System Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+  @page {
+    size: A4;
+    margin: 12mm 12mm 12mm 12mm;
+    @bottom-right {
+      content: counter(page);
+      font-family: 'Inter', sans-serif;
+      font-size: 8pt;
+      color: #718096;
+      font-weight: 600;
+    }
+    @bottom-left {
+      content: "SHIFT ⚡ — Technical Specifications Document";
+      font-family: 'Inter', sans-serif;
+      font-size: 8pt;
+      color: #718096;
+    }
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #1a202c;
+    background-color: #ffffff;
+    line-height: 1.5;
+    font-size: 9pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Montserrat', sans-serif;
+    color: #0b0f14;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  p {
+    margin-bottom: 7px;
+    color: #2d3748;
+  }
+
+  code, pre {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .doc-page {
+    page-break-before: always;
+    break-before: page;
+    min-height: 268mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+
+  .first-page {
+    page-break-before: avoid;
+    break-before: avoid;
+  }
+
+  /* ---------------- COVER PAGE ---------------- */
+  .cover-page {
+    background: linear-gradient(145deg, #0b0f14 0%, #111720 50%, #0d131a 100%);
+    color: #f5f5f5;
+    padding: 38px 32px;
+    height: 268mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cover-page::after {
+    content: "";
+    position: absolute;
+    bottom: -60px;
+    right: -60px;
+    width: 280px;
+    height: 280px;
+    background: radial-gradient(circle, rgba(57, 135, 229, 0.18) 0%, rgba(11, 15, 20, 0) 70%);
+    border-radius: 50%;
+  }
+
+  .cover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    padding-bottom: 16px;
+  }
+
+  .cover-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .cover-logo-icon {
+    width: 38px;
+    height: 38px;
+    background: #3987e5;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 22px;
+    color: #ffffff;
+    box-shadow: 0 0 18px rgba(57, 135, 229, 0.55);
+  }
+
+  .cover-brand-title {
+    font-size: 24pt;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #ffffff;
+  }
+
+  .cover-doc-type {
+    background: rgba(57, 135, 229, 0.15);
+    border: 1px solid rgba(57, 135, 229, 0.35);
+    color: #82b4f5;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 8.5pt;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .cover-body {
+    margin: 40px 0;
+  }
+
+  .cover-badge-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-size: 7.5pt;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  .badge-blue { background: rgba(57, 135, 229, 0.2); border: 1px solid #3987e5; color: #8ec0fa; }
+  .badge-green { background: rgba(12, 163, 12, 0.2); border: 1px solid #0ca30c; color: #72e672; }
+  .badge-amber { background: rgba(224, 152, 42, 0.2); border: 1px solid #e0982a; color: #f7ca7b; }
+  .badge-red { background: rgba(208, 59, 59, 0.2); border: 1px solid #d03b3b; color: #f89090; }
+  .badge-gray { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #e2e8f0; }
+
+  .cover-title {
+    font-size: 27pt;
+    font-weight: 800;
+    line-height: 1.15;
+    color: #ffffff;
+    margin-bottom: 14px;
+    letter-spacing: -0.5px;
+  }
+
+  .cover-title span {
+    color: #3987e5;
+  }
+
+  .cover-subtitle {
+    font-size: 11pt;
+    color: #a0aec0;
+    max-width: 580px;
+    line-height: 1.5;
+    font-weight: 400;
+    margin-bottom: 22px;
+  }
+
+  .cover-quote {
+    border-left: 3px solid #3987e5;
+    padding-left: 14px;
+    font-style: italic;
+    color: #cbd5e0;
+    font-size: 9.5pt;
+    margin-top: 15px;
+  }
+
+  .cover-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    background: rgba(17, 23, 32, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .cover-meta-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cover-meta-label {
+    font-size: 7.2pt;
+    text-transform: uppercase;
+    color: #718096;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .cover-meta-val {
+    font-size: 9pt;
+    color: #e2e8f0;
+    font-weight: 600;
+  }
+
+  /* ---------------- INTERIOR TYPOGRAPHY & LAYOUT ---------------- */
+  .section-header {
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .section-title {
+    font-size: 13.5pt;
+    color: #0b0f14;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-num {
+    background: #0b0f14;
+    color: #ffffff;
+    font-size: 8pt;
+    font-weight: 800;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sub-title {
+    font-size: 10pt;
+    color: #1a202c;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    font-weight: 700;
+  }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 9px;
+    margin: 8px 0;
+  }
+
+  .card-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+    margin: 8px 0;
+  }
+
+  .spec-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 7px;
+    padding: 9px 11px;
+  }
+
+  .spec-card.highlight {
+    background: #f0f7ff;
+    border-color: #bee3f8;
+  }
+
+  .spec-card-title {
+    font-size: 9pt;
+    font-weight: 700;
+    color: #0b0f14;
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .spec-card-body {
+    font-size: 8.2pt;
+    color: #4a5568;
+    line-height: 1.42;
+  }
+
+  .spec-card-body ul {
+    margin-left: 15px;
+    margin-top: 3px;
+  }
+
+  .spec-card-body li {
+    margin-bottom: 2px;
+  }
+
+  /* ---------------- TABLES ---------------- */
+  table.spec-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0 10px 0;
+    font-size: 8.2pt;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  table.spec-table th {
+    background: #0b0f14;
+    color: #ffffff;
+    font-weight: 600;
+    text-align: left;
+    padding: 6px 9px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 7.8pt;
+    letter-spacing: 0.3px;
+    border: none;
+  }
+
+  table.spec-table td {
+    padding: 6px 9px;
+    border-bottom: 1px solid #edf2f7;
+    color: #2d3748;
+    vertical-align: top;
+    line-height: 1.38;
+  }
+
+  table.spec-table tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  table.spec-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* ---------------- CALLOUT BOXES ---------------- */
+  .callout {
+    border-left: 3.5px solid #3987e5;
+    background: #f7fafc;
+    padding: 8px 12px;
+    border-radius: 0 6px 6px 0;
+    margin: 8px 0;
+    font-size: 8.5pt;
+  }
+
+  .callout-warn {
+    border-left-color: #e0982a;
+    background: #fffaf0;
+  }
+
+  .callout-success {
+    border-left-color: #0ca30c;
+    background: #f0fff4;
+  }
+
+  .callout-title {
+    font-weight: 700;
+    color: #0b0f14;
+    margin-bottom: 2px;
+    font-size: 8.8pt;
+  }
+
+  /* ---------------- CODE SNIPPETS ---------------- */
+  .code-box {
+    background: #0b0f14;
+    color: #f5f5f5;
+    padding: 8px 11px;
+    border-radius: 6px;
+    font-size: 7.8pt;
+    line-height: 1.42;
+    margin: 6px 0;
+    border: 1px solid #222b36;
+  }
+
+  .code-box .kw { color: #f67280; font-weight: 600; }
+  .code-box .fn { color: #61afef; }
+  .code-box .str { color: #98c379; }
+  .code-box .num { color: #e5c07b; }
+  .code-box .com { color: #5c6370; font-style: italic; }
+
+  /* ---------------- USP GRID ---------------- */
+  .usp-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin: 8px 0;
+  }
+
+  .usp-card {
+    border: 1px solid #e2e8f0;
+    border-top: 3px solid #3987e5;
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: #ffffff;
+  }
+
+  .usp-card.green { border-top-color: #0ca30c; }
+  .usp-card.amber { border-top-color: #e0982a; }
+  .usp-card.red { border-top-color: #d03b3b; }
+  .usp-card.purple { border-top-color: #805ad5; }
+  .usp-card.teal { border-top-color: #319795; }
+
+  .usp-num {
+    font-size: 7pt;
+    font-weight: 800;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .usp-title {
+    font-size: 8.8pt;
+    font-weight: 700;
+    color: #0b0f14;
+    margin: 1px 0 3px 0;
+  }
+
+  .usp-desc {
+    font-size: 7.9pt;
+    color: #4a5568;
+    line-height: 1.36;
+  }
+
+  /* ---------------- FORMULA BOX ---------------- */
+  .formula-box {
+    background: #111720;
+    color: #f5f5f5;
+    border-radius: 7px;
+    padding: 10px 12px;
+    margin: 8px 0;
+    border: 1px solid #222b36;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.2pt;
+  }
+
+  .formula-title {
+    font-family: 'Montserrat', sans-serif;
+    color: #82b4f5;
+    font-weight: 700;
+    font-size: 8.5pt;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ---------------- TOC ---------------- */
+  .toc-container {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 8px 0 12px 0;
+  }
+
+  .toc-title {
+    font-size: 9.5pt;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #0b0f14;
+    border-bottom: 1px solid #cbd5e0;
+    padding-bottom: 3px;
+  }
+
+  .toc-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 3px 18px;
+    font-size: 8pt;
+  }
+
+  .toc-item {
+    display: flex;
+    justify-content: space-between;
+    color: #4a5568;
+  }
+
+  .toc-item strong {
+    color: #0b0f14;
+  }
+
+  .pill {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 7.2pt;
+    font-family: 'JetBrains Mono', monospace;
+    background: #edf2f7;
+    color: #2d3748;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== PAGE 1: COVER PAGE ==================== -->
+<div class="cover-page first-page">
+  <div class="cover-header">
+    <div class="cover-brand">
+      <div class="cover-logo-icon">⚡</div>
+      <div class="cover-brand-title">SHIFT</div>
+    </div>
+    <div class="cover-doc-type">Technical Specification & Architecture</div>
+  </div>
+
+  <div class="cover-body">
+    <div class="cover-badge-row">
+      <span class="badge badge-blue">React 19 + Vite 8</span>
+      <span class="badge badge-green">Express 5 + Node.js</span>
+      <span class="badge badge-amber">MongoDB Atlas 9</span>
+      <span class="badge badge-gray">Progressive Web App (PWA)</span>
+      <span class="badge badge-blue">Web Audio API</span>
+      <span class="badge badge-red">Oxlint Verified</span>
+    </div>
+
+    <h1 class="cover-title">
+      Comprehensive Technical Specifications & Architecture Whitepaper
+    </h1>
+
+    <p class="cover-subtitle">
+      A mood-aware, state-driven action planner and distraction-free execution engine. Eliminates decision paralysis through real-time physiological & emotional vector scoring, whole-app focus locking, and micro-learning downtime feeds.
+    </p>
+
+    <div class="cover-quote">
+      "Your state changes. Your next move shifts. No endless to-do lists. No decision fatigue. Just the single thing worth doing right now."
+    </div>
+  </div>
+
+  <div class="cover-meta-grid">
+    <div class="cover-meta-item">
+      <span class="cover-meta-label">Application Name</span>
+      <span class="cover-meta-val">SHIFT (shift-momentum-on-demand)</span>
+    </div>
+    <div class="cover-meta-item">
+      <span class="cover-meta-label">Application Type</span>
+      <span class="cover-meta-val">Mobile-First Progressive Web App (PWA)</span>
+    </div>
+    <div class="cover-meta-item">
+      <span class="cover-meta-label">Lead Architect & Developer</span>
+      <span class="cover-meta-val">Dhruv Solanki</span>
+    </div>
+    <div class="cover-meta-item">
+      <span class="cover-meta-label">Development Tooling</span>
+      <span class="cover-meta-val">Visual Studio Code & Antigravity IDE</span>
+    </div>
+    <div class="cover-meta-item">
+      <span class="cover-meta-label">Primary Languages</span>
+      <span class="cover-meta-val">JavaScript (ES2024), JSX, CSS3, HTML5, SVG</span>
+    </div>
+    <div class="cover-meta-item">
+      <span class="cover-meta-label">Specification Version & Date</span>
+      <span class="cover-meta-val">Release v1.0.0 — October 2026</span>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAGE 2: EXEC SUMMARY & PROBLEMS ==================== -->
+<div class="doc-page">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-num">0</span> Executive Summary & Document Navigation
+    </div>
+    <span class="pill">OVERVIEW</span>
+  </div>
+
+  <p>
+    <strong>SHIFT</strong> is a purpose-built Progressive Web Application designed to solve the endemic failure mode of traditional task managers: <em>choice overload and context blindness</em>. Unlike legacy productivity software (Todoist, TickTick, Notion, Asana) which function as passive, guilt-inducing backlogs of uncompleted obligations, SHIFT acts as an active, state-aware recommendation engine. It takes three real-time human inputs (Emotional Headspace, Physiological Energy Tank, and Available Temporal Window), filters an active task pool, and returns a single, unambiguous next move.
+  </p>
+
+  <div class="toc-container">
+    <div class="toc-title">Document Structure & Chapter Navigation</div>
+    <div class="toc-grid">
+      <div class="toc-item"><span>1. The Modern Productivity Dilemma</span> <strong>Problems</strong></div>
+      <div class="toc-item"><span>2. How SHIFT Is The Solution</span> <strong>Philosophy</strong></div>
+      <div class="toc-item"><span>3. Comprehensive Feature Suite</span> <strong>Core System</strong></div>
+      <div class="toc-item"><span>4. Unique Selling Points (USPs)</span> <strong>Differentiators</strong></div>
+      <div class="toc-item"><span>5. Development Environment & Languages</span> <strong>Dev Stack</strong></div>
+      <div class="toc-item"><span>6. Progressive Web App (PWA) Architecture</span> <strong>Client Model</strong></div>
+      <div class="toc-item"><span>7. Complete Library & Framework Registry</span> <strong>Dependencies</strong></div>
+      <div class="toc-item"><span>8. Backend Architecture & REST Schemas</span> <strong>REST / DB</strong></div>
+      <div class="toc-item"><span>9. Recommendation Engine Mathematics</span> <strong>Algorithms</strong></div>
+      <div class="toc-item"><span>10. Downtime Engine & External APIs</span> <strong>Micro-Learning</strong></div>
+      <div class="toc-item"><span>11. Zero-Dependency Data Visualizations</span> <strong>SVG Charts</strong></div>
+      <div class="toc-item"><span>12. Hardware, Audio & Particle Physics</span> <strong>Web APIs</strong></div>
+      <div class="toc-item"><span>13. Performance, Security & Roadmap</span> <strong>Production</strong></div>
+    </div>
+  </div>
+
+  <div class="section-header" style="margin-top: 10px;">
+    <div class="section-title">
+      <span class="section-num">1</span> Problems We Face Nowadays (The Productivity Dilemma)
+    </div>
+    <span class="pill">PROBLEM STATEMENT</span>
+  </div>
+
+  <p>
+    Despite hundreds of task management tools available today, modern knowledge workers, students, and engineers suffer from heightened chronic burnout and severe procrastination. An analysis of modern productivity dynamics reveals four fatal structural failures:
+  </p>
+
+  <div class="card-grid">
+    <div class="spec-card">
+      <div class="spec-card-title">🚨 1. Backlog Paralysis & Guilt Debt</div>
+      <div class="spec-card-body">
+        Standard to-do lists act as dumping grounds. Users pile up 50 to 200 tasks. Opening the app creates instant decision fatigue (Hick's Law). The cognitive overhead of choosing what to do paralyzes the user, while overdue red badges induce guilt, anxiety, and eventual app abandonment.
+      </div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">⚡ 2. Cognitive State & Energy Disconnect</div>
+      <div class="spec-card-body">
+        Traditional apps treat humans as deterministic CPUs with uniform operational capacity. They ignore emotional fatigue, post-lunch energy crashes, or mental burnout. Recommending high-intensity analytical work to a depleted brain guarantees failure, frustration, and avoidance loops.
+      </div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">📱 3. Fragmented Time & Doomscrolling Trap</div>
+      <div class="spec-card-body">
+        Modern work is fragmented into micro-windows of 5 to 15 minutes between meetings or chores. Because large projects cannot be completed in 10 minutes, users reflexively default to passive doomscrolling on social media (reels, feeds), depleting mental energy without restorative rest.
+      </div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">🎭 4. "Productivity Theater" Syndrome</div>
+      <div class="spec-card-body">
+        Users waste hours categorizing, color-coding, creating nested sub-folders, tagging, and rearranging Kanban boards. This gives a false dopamine rush of accomplishment without moving the needle on actual execution, turning organization into a sophisticated form of procrastination.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAGE 3: THE SOLUTION & PARADIGM ==================== -->
+<div class="doc-page">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-num">2</span> How SHIFT Is The Solution (The Anti-To-Do Philosophy)
+    </div>
+    <span class="pill">ARCHITECTURAL SOLUTION</span>
+  </div>
+
+  <p>
+    SHIFT fundamentally reverses the relationship between the human and the backlog. Instead of forcing you to organize the list, SHIFT hides the backlog and hands you <strong>exactly one move</strong> tailored to your immediate biological and emotional state:
+  </p>
+
+  <div class="card-grid">
+    <div class="spec-card highlight">
+      <div class="spec-card-title">🎯 The "One Move" Paradigm</div>
+      <div class="spec-card-body">
+        Zero list browsing at the moment of execution. SHIFT assesses your state, queries your tasks, runs its scoring engine, and presents a single, unmistakable action card. Decision fatigue drops to zero, restoring clean forward momentum.
+      </div>
+    </div>
+
+    <div class="spec-card highlight">
+      <div class="spec-card-title">🧬 Bi-Directional Effort ↔ Energy Fit</div>
+      <div class="spec-card-body">
+        SHIFT completely decouples duration from cognitive difficulty. A 10-minute task can be exhausting (filing taxes), while a 45-minute task can be relaxing (cleaning a desk). SHIFT matches the gas in your tank to the effort the task demands.
+      </div>
+    </div>
+
+    <div class="spec-card highlight">
+      <div class="spec-card-title">🔒 The Focus Lock Sanctuary</div>
+      <div class="spec-card-body">
+        When an action begins, the entire application interface locks. Navigation disappears. The user cannot browse tasks, history, or insights. A clean countdown ring keeps the user honest, mirrored across all active devices in real-time.
+      </div>
+    </div>
+
+    <div class="spec-card highlight">
+      <div class="spec-card-title">📚 Constructive Downtime Feeds</div>
+      <div class="spec-card-body">
+        For micro-breaks, SHIFT provides a built-in algorithmic antidote to doomscrolling: Word Forge (lexical mastery) and Deep Read (curated Wikipedia summaries), with automated 2.5s dwell-detection logging.
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-title">SHIFT End-to-End System Execution Loop</div>
+  <div class="code-box">
+    [Check-In State: Mood · Energy · Time Window] ➔ [Candidate Task Pool Filter (Hard Duration Ceiling)]<br>
+    ➔ [Scoring Matrix: Effort Gap ± Mood Resonance ± Priority Hierarchy ± Category Novelty ± Feedback Bias]<br>
+    ➔ [Single Highest-Scoring Recommendation Card Presented] ➔ [Slide-to-Confirm Physics Drag]<br>
+    ➔ [App-Wide Focus Lock Engaged (Active Sync across all client devices)] ➔ [SVG Ring Countdown & Overtime]<br>
+    ➔ [Complete: Web Audio Harmonic Triad (C5-E5-G5) + Haptics] ➔ [Feedback Loop (+25/-25 Reinforcement)]
+  </div>
+
+  <div class="callout callout-success">
+    <div class="callout-title">The Psychological Breakthrough: Momentum Over Planning</div>
+    Traditional planning tools demand high executive function at the exact moments when willpower is depleted. SHIFT lowers the barrier to entry to an absolute minimum: answer three quick chips, slide the bar, and execute one single move. Momentum builds confidence, and confidence breaks procrastination cycles.
+  </div>
+</div>
+
+<!-- ==================== PAGE 4: BASIC FEATURES & WORKFLOW ==================== -->
+<div class="doc-page">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-num">3</span> Basic Features & Core Application Workflow
+    </div>
+    <span class="pill">FUNCTIONAL SPECIFICATION</span>
+  </div>
+
+  <p>
+    The application is structured into four main operational views, an ambient discovery feed, and an immersive focus execution state:
+  </p>
+
+  <table class="spec-table">
+    <thead>
+      <tr>
+        <th style="width: 17%;">Module / View</th>
+        <th style="width: 29%;">User Workflow & Interactions</th>
+        <th style="width: 34%;">Underlying System Behavior</th>
+        <th style="width: 20%;">Key Components</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Now (Check-In)</strong></td>
+        <td>User answers 3 questions: Mood (6 options), Energy (3 options), Available Time (4 options). Taps "SHIFT →".</td>
+        <td>Stores session in MongoDB, executes scoring pipeline, evaluates hard time boundaries, renders single recommendation card.</td>
+        <td><code>Now.jsx</code>, <code>FlipText.jsx</code>, <code>SlideToConfirm.jsx</code></td>
+      </tr>
+      <tr>
+        <td><strong>Focus Lock</strong></td>
+        <td>Triggered by sliding the confirmation handle. Locks out all navigation and page mounts across the client.</td>
+        <td>Initializes countdown ring against server <code>startedAt</code>. Transitions seamlessly to overtime counting. Polls active action sync.</td>
+        <td><code>FocusLock.jsx</code>, <code>activeAction.js</code>, Web Audio API</td>
+      </tr>
+      <tr>
+        <td><strong>Tasks Pool</strong></td>
+        <td>Create, update, soft-delete tasks. Filter by Active and Completed. Configure Effort, Priority, and Type.</td>
+        <td>Differentiates between "One-Off" and "Permanent" habit tasks. Enforces required fields. Performs optimistic updates.</td>
+        <td><code>Tasks.jsx</code>, <code>TaskFormFields.jsx</code>, <code>Modal.jsx</code></td>
+      </tr>
+      <tr>
+        <td><strong>History & Log</strong></td>
+        <td>Chronological calendar grouping all task completions and downtime reading sessions by local date.</td>
+        <td>Supports retroactive manual task logging with historical date picker and subjective post-task reflection notes.</td>
+        <td><code>History.jsx</code>, <code>resolve.js</code>, <code>dayKey()</code></td>
+      </tr>
+      <tr>
+        <td><strong>Insights Engine</strong></td>
+        <td>Visual analytics dashboard with 4 tabs: Overview, Rhythm, Streaks, and Trends.</td>
+        <td>Calculates completion rates, category streaks, 17-week GitHub-style heatmap, circadian 2D distribution, and mood correlation.</td>
+        <td><code>Insights.jsx</code>, <code>CountUp.jsx</code>, Hand-rolled SVGs</td>
+      </tr>
+      <tr>
+        <td><strong>Downtime Suite</strong></td>
+        <td>Full-screen swipeable feed for micro-learning: Word Forge (lexicon) and Deep Read (Wikipedia digests).</td>
+        <td>Uses <code>IntersectionObserver</code> with 2.5s dwell threshold to automatically record completed sessions without buttons.</td>
+        <td><code>Downtime.jsx</code>, <code>DowntimeFeed.jsx</code>, <code>content.js</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="card-grid">
+    <div class="spec-card">
+      <div class="spec-card-title">♾️ Permanent vs One-Off Task Lifecycles</div>
+      <div class="spec-card-body">
+        Tasks are split into two paradigms: <code>oneoff</code> tasks (e.g. "Fix broken door hinge") vanish from the pool upon completion, while <code>permanent</code> habits (e.g. "15-min core mobility") stay active indefinitely, tallying cumulative completion streaks and remaining available for future recommendation cycles.
+      </div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">🔄 Persistent Session State (flowCache)</div>
+      <div class="spec-card-body">
+        The check-in selections and recommendation card survive tab switches without re-fetching via module-scoped <code>flowCache</code>. If a user switches to Tasks to check a detail, returning to Now preserves the exact recommendation until explicitly reset or started.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAGE 5: UNIQUE SELLING POINTS ==================== -->
+<div class="doc-page">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-num">4</span> Unique Selling Points (USPs) of SHIFT
+    </div>
+    <span class="pill">COMPETITIVE MOAT</span>
+  </div>
+
+  <p>
+    SHIFT incorporates eight distinct architectural innovations that do not exist in mainstream productivity platforms:
+  </p>
+
+  <div class="usp-grid">
+    <div class="usp-card">
+      <div class="usp-num">USP 01 — THE ANTI-LIST PARADIGM</div>
+      <div class="usp-title">Zero-Backlog Execution</div>
+      <div class="usp-desc">
+        Users never browse a list when it is time to work. The interface eliminates choice overload by reducing the decision space from N items to 1 mathematically optimized action card.
+      </div>
+    </div>
+
+    <div class="usp-card green">
+      <div class="usp-num">USP 02 — COGNITIVE DECOUPLING</div>
+      <div class="usp-title">Effort ↔ Energy Matching</div>
+      <div class="usp-desc">
+        Decouples clock duration from cognitive load. A 15-minute high-focus task is penalized when low on energy, while a 45-minute low-effort task is rewarded, matching reality.
+      </div>
+    </div>
+
+    <div class="usp-card amber">
+      <div class="usp-num">USP 03 — UNBREAKABLE SANCTUARY</div>
+      <div class="usp-title">Full-App Focus Lockout</div>
+      <div class="usp-desc">
+        Starting a task freezes the entire application shell. Route navigation, task pools, and history are completely unmounted until the user marks the move complete or skipped.
+      </div>
+    </div>
+
+    <div class="usp-card purple">
+      <div class="usp-num">USP 04 — OMNIPRESENT COHESION</div>
+      <div class="usp-title">Cross-Device State Polling Sync</div>
+      <div class="usp-desc">
+        Starting a focus session on a laptop immediately locks the mobile PWA on your phone. Completing the task on one device instantly releases the lock everywhere.
+      </div>
+    </div>
+
+    <div class="usp-card teal">
+      <div class="usp-num">USP 05 — DELIBERATE INTENT</div>
+      <div class="usp-title">Slide-to-Confirm Physics</div>
+      <div class="usp-desc">
+        Replaces accidental taps with a 90% travel slide mechanic built with Web Animations API and cubic-bezier spring physics, enforcing conscious, mindful commitment.
+      </div>
+    </div>
+
+    <div class="usp-card red">
+      <div class="usp-num">USP 06 — ZERO-ASSET SYNTHESIS</div>
+      <div class="usp-title">Web Audio Harmonic Payoff</div>
+      <div class="usp-desc">
+        Synthesizes an uplifting C5–E5–G5 major triad sine chord via browser <code>AudioContext</code> and triggers physical haptic vibration. Zero MP3 assets; zero bundle overhead.
+      </div>
+    </div>
+
+    <div class="usp-card">
+      <div class="usp-num">USP 07 — INTENTIONAL REST</div>
+      <div class="usp-title">Dwell-Tracked Downtime Feed</div>
+      <div class="usp-desc">
+        Replaces algorithmic doomscrolling with curated Datamuse vocabulary and Wikipedia digests. Automatically records educational credit after 2.5s center-screen dwell.
+      </div>
+    </div>
+
+    <div class="usp-card green">
+      <div class="usp-num">USP 08 — LEAN VECTOR VISUALS</div>
+      <div class="usp-title">100% Hand-Rolled SVG Visuals</div>
+      <div class="usp-desc">
+        Zero third-party charting libraries (no Chart.js, Recharts, or D3). All donuts, 17-week heatmaps, trend lines, and timers are pure, pixel-perfect, accessible SVGs.
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-warn" style="margin-top: 6px;">
+    <div class="callout-title">The Unified Competitive Advantage</div>
+    Unlike fragmented point solutions (e.g. Forest for timing, Notion for storage, Duolingo for breaks), SHIFT unifies task intake, state assessment, distraction-free execution, and restorative downtime into a single cohesive, ultra-lightweight Progressive Web App.
+  </div>
+</div>
+
+<!-- ==================== PAGE 6: TECH STACK, TOOLS & PWA ==================== -->
+<div class="doc-page">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-num">5</span> Technical Stack: Tools, Languages & PWA Model
+    </div>
+    <span class="pill">TECHNOLOGY PROFILE</span>
+  </div>
+
+  <p>
+    SHIFT is engineered as an ultra-fast, modern, decoupled full-stack architecture with strict separation of concerns, zero runtime CSS overhead, and lightweight vector graphics:
+  </p>
+
+  <div class="card-grid">
+    <div class="spec-card">
+      <div class="spec-card-title">🛠️ Engineering & Development Tools</div>
+      <div class="spec-card-body">
+        <ul>
+          <li><strong>Visual Studio Code:</strong> Primary IDE with multi-root workspace support, Git integration, and ES Modules syntax support.</li>
+          <li><strong>Antigravity IDE:</strong> Advanced agentic AI pair programming environment, autonomous debugging, code inspection, and architectural verification.</li>
+          <li><strong>Git & GitHub:</strong> Distributed version control, branch isolation, and release tagging.</li>
+          <li><strong>Node Package Manager (npm v10+):</strong> Dependency resolution and build scripts.</li>
+          <li><strong>Oxlint (Rust Linter):</strong> Ultra-fast static analysis ensuring code hygiene.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">💻 Languages & Technical Standards</div>
+      <div class="spec-card-body">
+        <ul>
+          <li><strong>JavaScript (ES2024):</strong> ES Modules on frontend, CommonJS on server, async/await, optional chaining, nullish coalescing, AbortController.</li>
+          <li><strong>JSX:</strong> React 19 component declarative composition syntax.</li>
+          <li><strong>Vanilla CSS3 (Design Tokens):</strong> CSS Custom Properties, Flexbox, CSS Grid, Web Animations API, CSS <code>@page</code> print rules.</li>
+          <li><strong>HTML5 & SVG:</strong> Semantic elements (<code>&lt;article&gt;</code>, <code>&lt;section&gt;</code>, <code>&lt;nav&gt;</code>, <code>&lt;svg&gt;</code>).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-title">Type of Application: Progressive Web App (PWA)</div>
+  <p>
+    SHIFT is built from the ground up as a <strong>Mobile-First Progressive Web Application</strong>. It provides a native app experience on iOS, Android, and Desktop without app store friction:
+  </p>
+  <ul style="margin-left: 20px; font-size: 8.5pt; color: #2d3748; margin-bottom: 8px;">
+    <li><strong>Standalone Display Mode:</strong> Configured with <code>display: "standalone"</code>, removing browser address bars and navigation controls for a native feel.</li>
+    <li><strong>Offline Resilience & Auto-Update:</strong> Managed by <code>vite-plugin-pwa</code> with <code>registerType: "autoUpdate"</code>, guaranteeing background service worker cache refreshes.</li>
+    <li><strong>Theme Consistency:</strong> Enforces <code>theme_color: "#0b0f14"</code> and <code>background_color: "#0b0f14"</code> to ensure seamless status bar and splash screen integration.</li>
+    <li><strong>Maskable Adaptive Icons:</strong> Full compliance with Android adaptive icons (192x192, 512x512, and maskable 512x512).</li>
+    <li><strong>Fluid Gesture Shell:</strong> Embla Carousel provides hardware-accelerated horizontal touch gestures across views and nested Insights sub-tabs.</li>
+  </ul>
+
+  <div class="code-box">
+    <span class="com">// PWA Configuration (client/vite.config.js)</span><br>
+    <span class="fn">VitePWA</span>({ registerType: <span class="str">'autoUpdate'</span>, includeAssets: [<span class="str">'favicon.svg'</span>, <span class="str">'apple-touch-icon.png'</span>],<br>
+    &nbsp;&nbsp;manifest: { name: <span class="str">'SHIFT — Momentum on demand'</span>, display: <span class="str">'standalone'</span>, theme_color: <span class="str">'#0b0f14'</span> } })
+  </div>
+</div>
+
+<!-- ==================== PAGE 7: FRAMEWORKS & LIBRARIES ==================== -->
+<div class="doc-page">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-num">6</span> Comprehensive Framework & Library Directory
+    </div>
+    <span class="pill">DEPENDENCY INVENTORY</span>
+  </div>
+
+  <p>
+    Detailed inventory of all imported dependencies across frontend client and backend server layers:
+  </p>
+
+  <table class="spec-table">
+    <thead>
+      <tr>
+        <th style="width: 22%;">Library / Package</th>
+        <th style="width: 10%;">Version</th>
+        <th style="width: 13%;">Layer</th>
+        <th style="width: 55%;">Role, Technical Description & Justification</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>react</code> / <code>react-dom</code></td>
+        <td><code>^19.2.8</code></td>
+        <td>Client UI</td>
+        <td>Core reactive component framework. Leverages React 19's optimized reconciler and compiler for sub-millisecond DOM updates.</td>
+      </tr>
+      <tr>
+        <td><code>vite</code></td>
+        <td><code>^8.3.0</code></td>
+        <td>Build Tool</td>
+        <td>Next-generation frontend tooling. Instant Hot Module Replacement (HMR) and optimized Rollup tree-shaking production builds.</td>
+      </tr>
+      <tr>
+        <td><code>react-router-dom</code></td>
+        <td><code>^7.18.4</code></td>
+        <td>Routing</td>
+        <td>Client-side declarative routing, URL state management, and seamless transitions between Desktop sidebar and Mobile shell.</td>
+      </tr>
+      <tr>
+        <td><code>embla-carousel-react</code></td>
+        <td><code>^8.6.0</code></td>
+        <td>Gestures</td>
+        <td>Ultra-lightweight, 60fps touch physics engine powering the mobile swipe pager and nested horizontal tab transitions.</td>
+      </tr>
+      <tr>
+        <td><code>vite-plugin-pwa</code></td>
+        <td><code>^1.3.0</code></td>
+        <td>PWA Runtime</td>
+        <td>Automates Workbox service worker generation, web manifest compilation, and asset caching strategies for offline support.</td>
+      </tr>
+      <tr>
+        <td><code>express</code></td>
+        <td><code>^5.2.1</code></td>
+        <td>Server API</td>
+        <td>Lightweight, unopinionated Node.js server framework managing REST routing, middleware chaining, and robust error dispatch.</td>
+      </tr>
+      <tr>
+        <td><code>mongoose</code></td>
+        <td><code>^9.10.1</code></td>
+        <td>Database ORM</td>
+        <td>MongoDB object modeling library providing schema validation, casting, atomic updates, and relational document population.</td>
+      </tr>
+      <tr>
+        <td><code>jsonwebtoken</code></td>
+        <td><code>^9.0.2</code></td>
+        <td>Security / Auth</td>
+        <td>Cryptographic signing and verification of stateless JSON Web Tokens (JWT) for secure, tamper-proof user sessions.</td>
+      </tr>
+      <tr>
+        <td><code>bcryptjs</code></td>
+        <td><code>^2.4.3</code></td>
+        <td>Security / Hash</td>
+        <td>Secure Blowfish password hashing with 10 salt rounds, protecting user credentials against rainbow tables and brute force.</td>
+      </tr>
+      <tr>
+        <td><code>cors</code></td>
+        <td><code>^2.8.6</code></td>
+        <td>Middleware</td>
+        <td>Cross-Origin Resource Sharing middleware enabling strict origin whitelisting in production environments.</td>
+      </tr>
+      <tr>
+        <td><code>dotenv</code></td>
+        <td><code>^17.4.2</code></td>
+        <td>Configuration</td>
+        <td>Loads sensitive environment variables (<code>MONGO_URI</code>, <code>JWT_SECRET</code>) into <code>process.env</code> securely.</td>
+      </tr>
+      <tr>
+        <td><code>oxlint</code></td>
+        <td><code>^1.81.0</code></td>
+        <td>Linter</td>
+        <td>Next-generation Rust-based linter that validates the client codebase in milliseconds, catching bugs before runtime.</td>
+      </tr>
+      <tr>
+        <td><code>sharp</code></td>
+        <td><code>^0.35.4</code></td>
+        <td>Image Pipeline</td>
+        <td>High-performance Libvips C-library wrapper used for converting and resizing PWA icons and splash screens.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-success">
+    <div class="callout-title">Zero Dependency Bloat Policy</div>
+    Noticeable omissions are deliberate: <strong>No CSS frameworks</strong> (Tailwind, Bootstrap), <strong>no animation bloat</strong> (Framer Motion at 120KB), and <strong>no charting libraries</strong> (Chart.js / D3 at 200KB+). The entire client bundle transfers in under 180KB gzip, resulting in instantaneous cold starts even on 3G cellular connections.
+  </div>
+</div>
+
+<!-- ==================== PAGE 8: BACKEND ARCHITECTURE & REST SCHEMAS ==================== -->
+<div class="doc-page">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-num">7</span> Backend Architecture, REST APIs & Database Schemas
+    </div>
+    <span class="pill">DATA & SECURITY</span>
+  </div>
+
+  <p>
+    The backend follows a defensive, multi-layered REST architectural pattern. All endpoints (except <code>/api/auth/*</code>) are strictly guarded by <code>authMiddleware</code>, which extracts and verifies the Bearer JWT, injecting <code>req.userId</code> to enforce rigid single-tenant database scoping.
+  </p>
+
+  <div class="sub-title">Complete REST API Endpoint Directory</div>
+  <table class="spec-table">
+    <thead>
+      <tr>
+        <th style="width: 14%;">Method</th>
+        <th style="width: 28%;">Endpoint</th>
+        <th style="width: 14%;">Auth Guard</th>
+        <th style="width: 44%;">Purpose & Data Payload</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>POST</code></td>
+        <td><code>/api/auth/register</code></td>
+        <td>Public</td>
+        <td>Creates a new user profile with bcrypt salted password hash. Returns JWT.</td>
+      </tr>
+      <tr>
+        <td><code>POST</code></td>
+        <td><code>/api/auth/login</code></td>
+        <td>Public</td>
+        <td>Validates email/password credentials; issues signed JWT bearer token.</td>
+      </tr>
+      <tr>
+        <td><code>GET</code></td>
+        <td><code>/api/auth/me</code></td>
+        <td>Bearer JWT</td>
+        <td>Returns authenticated user record (id, name, email) for session hydration.</td>
+      </tr>
+      <tr>
+        <td><code>GET · POST</code></td>
+        <td><code>/api/tasks</code></td>
+        <td>Bearer JWT</td>
+        <td>Lists all active tasks or creates a new task (title, category, effort, time, type).</td>
+      </tr>
+      <tr>
+        <td><code>PUT · DEL</code></td>
+        <td><code>/api/tasks/:id</code></td>
+        <td>Bearer JWT</td>
+        <td>Updates task properties or performs soft deletion (<code>status: 'deleted'</code>).</td>
+      </tr>
+      <tr>
+        <td><code>POST</code></td>
+        <td><code>/api/sessions</code></td>
+        <td>Bearer JWT</td>
+        <td>Logs a real-time check-in record (mood, energy, availableTime).</td>
+      </tr>
+      <tr>
+        <td><code>POST</code></td>
+        <td><code>/api/recommendation</code></td>
+        <td>Bearer JWT</td>
+        <td>Executes scoring engine against session ID; returns single optimal task.</td>
+      </tr>
+      <tr>
+        <td><code>GET · POST</code></td>
+        <td><code>/api/actions</code></td>
+        <td>Bearer JWT</td>
+        <td>Fetches user action history or initiates an active focus session.</td>
+      </tr>
+      <tr>
+        <td><code>PUT</code></td>
+        <td><code>/api/actions/:id</code></td>
+        <td>Bearer JWT</td>
+        <td>Updates action status (completed/skipped) and attaches feedback/notes.</td>
+      </tr>
+      <tr>
+        <td><code>GET · POST</code></td>
+        <td><code>/api/activity</code></td>
+        <td>Bearer JWT</td>
+        <td>Fetches downtime totals or logs completed reading / vocabulary sessions.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="sub-title">Database Collections & Mongoose Schemas (MongoDB Atlas)</div>
+  <div class="card-grid">
+    <div class="spec-card">
+      <div class="spec-card-title">👤 User (<code>User.js</code>) & 📋 Task (<code>Task.js</code>)</div>
+      <div class="spec-card-body">
+        <strong>User:</strong> <code>name</code>, <code>email</code> (unique index), <code>password</code> (bcrypt hash).<br>
+        <strong>Task:</strong> <code>user</code> (ref), <code>title</code>, <code>category</code>, <code>estimatedTime</code>, <code>priority</code> (low/med/high), <code>effort</code> (low/med/high), <code>type</code> (oneoff/permanent), <code>status</code> (active/completed/deleted), <code>completionCount</code>.
+      </div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">⚡ Action (<code>Action.js</code>) & 📖 Activity (<code>Activity.js</code>)</div>
+      <div class="spec-card-body">
+        <strong>Action:</strong> <code>user</code> (ref), <code>sessionId</code>, <code>taskId</code> (ref), <code>source</code> (shift/manual), <code>status</code> (started/completed/skipped), <code>feedback</code> (better/same/worse), <code>note</code>, <code>startedAt</code>, <code>completedAt</code>.<br>
+        <strong>Activity:</strong> <code>user</code> (ref), <code>type</code> (read/vocab), <code>title</code>, <code>completedAt</code>.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAGE 9: RECOMMENDATION MATHEMATICS ==================== -->
+<div class="doc-page">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-num">8</span> Mathematical Formulation of the Recommendation Engine
+    </div>
+    <span class="pill">ALGORITHMIC LOGIC</span>
+  </div>
+
+  <p>
+    The recommendation algorithm lives in <code>server/services/recommendationEngine.js</code>. It is a deterministic, test-covered scoring engine. It avoids black-box machine learning to guarantee 100% explainability, zero latency, and zero cloud API dependency.
+  </p>
+
+  <div class="formula-box">
+    <div class="formula-title">THE SHIFT SCORING FORMULA</div>
+    FinalScore(T) = BaseScore(50) + Δ_EnergyEffort + Δ_Mood + Δ_Priority + Δ_Variety + Σ(Δ_Feedback)
+  </div>
+
+  <table class="spec-table">
+    <thead>
+      <tr>
+        <th style="width: 25%;">Evaluation Vector</th>
+        <th style="width: 25%;">Condition / Mathematical Formula</th>
+        <th style="width: 15%;">Score Delta</th>
+        <th style="width: 35%;">Behavioral Rationale</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Temporal Hard Limit</strong></td>
+        <td><code>estimatedTime &gt; availableTime</code></td>
+        <td><strong>DISQUALIFIED</strong></td>
+        <td>Strict ceiling. A 30-min task is never returned when the user only has 15 minutes. Returns 404 (no-fit) if no tasks qualify.</td>
+      </tr>
+      <tr>
+        <td><strong>Energy ↔ Effort Match</strong></td>
+        <td><code>gap = effortLevel - energyLevel == 0</code></td>
+        <td><strong style="color: #0ca30c;">+30</strong></td>
+        <td>Dead-on match. The task demands exactly the cognitive reserve the user possesses.</td>
+      </tr>
+      <tr>
+        <td><strong>Energy Surplus</strong></td>
+        <td><code>gap = effortLevel - energyLevel &lt; 0</code></td>
+        <td><strong style="color: #3987e5;">+15</strong></td>
+        <td>Comfortably doable. The user has high energy and the task is medium or low effort.</td>
+      </tr>
+      <tr>
+        <td><strong>Cognitive Stretch</strong></td>
+        <td><code>gap == 1</code> (e.g., med effort, low energy)</td>
+        <td><strong style="color: #e0982a;">−15</strong></td>
+        <td>Slight stretch. Tolerable if priority or feedback compensates.</td>
+      </tr>
+      <tr>
+        <td><strong>Cognitive Wall</strong></td>
+        <td><code>gap &ge; 2</code> (high effort, low energy)</td>
+        <td><strong style="color: #d03b3b;">−35</strong></td>
+        <td>Severe cognitive wall. Prevents assigning complex analysis when drained.</td>
+      </tr>
+      <tr>
+        <td><strong>Rough Headspace Filter</strong></td>
+        <td><code>moodScore &le; 2 && effort == 3</code></td>
+        <td><strong style="color: #d03b3b;">−15</strong></td>
+        <td>When feeling "low" or "overwhelmed", tolerance for high-effort work collapses.</td>
+      </tr>
+      <tr>
+        <td><strong>Positive Mood Resonance</strong></td>
+        <td><code>moodScore &ge; 3</code> ("good", "great")</td>
+        <td><strong style="color: #0ca30c;">+5</strong></td>
+        <td>Slight positive resilience nudge across all candidate tasks.</td>
+      </tr>
+      <tr>
+        <td><strong>Priority Hierarchy</strong></td>
+        <td><code>priority == "high"</code> / <code>"medium"</code></td>
+        <td><strong>+20 / +10</strong></td>
+        <td>High-priority tasks receive systematic preference, balanced against energy.</td>
+      </tr>
+      <tr>
+        <td><strong>Category Repetition Fatigue</strong></td>
+        <td><code>sameCategoryCount &times; 20</code> in recent actions</td>
+        <td><strong style="color: #d03b3b;">−20 / each</strong></td>
+        <td>Prevents category monotony (e.g., doing 3 consecutive coding tasks).</td>
+      </tr>
+      <tr>
+        <td><strong>Category Novelty Bonus</strong></td>
+        <td><code>sameCategoryCount == 0</code></td>
+        <td><strong style="color: #3987e5;">+10</strong></td>
+        <td>Encourages healthy contextual cross-training across life domains.</td>
+      </tr>
+      <tr>
+        <td><strong>Feedback Reinforcement</strong></td>
+        <td>Historical "better" / "same" / "worse" / "skipped"</td>
+        <td><strong>+25 / +5 / −25 / −10</strong></td>
+        <td>Learns which specific tasks actually restore or deplete the user.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="card-grid">
+    <div class="spec-card">
+      <div class="spec-card-title">🧪 Verified Test Case: Energy Decoupling</div>
+      <div class="spec-card-body">
+        In <code>recommendationEngine.test.js</code>: When a user checks in with <strong>Low Energy</strong> and 60 minutes available, the engine evaluates a 45-minute Low-Effort task vs. a 10-minute High-Effort task. The 45-minute task scores <code>50 + 30 (match) = 80</code>, while the 10-minute task scores <code>50 - 35 (wall) = 15</code>. The engine correctly selects the longer, easier task.
+      </div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">🎯 Verified Test Case: Feedback Adaptation</div>
+      <div class="spec-card-body">
+        If a task was previously marked "better", it earns <code>+25</code> points. If a user previously marked a task "worse", it loses <code>-25</code> points. This adaptive weighting ensures the app learns the user's subjective responses over time without requiring cloud neural nets.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAGE 10: DOWNTIME ENGINE & EXTERNAL APIS ==================== -->
+<div class="doc-page">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-num">9</span> Downtime Discovery Engine & External API Integrations
+    </div>
+    <span class="pill">MICRO-LEARNING</span>
+  </div>
+
+  <p>
+    The Downtime Engine (<code>client/src/downtime/content.js</code> & <code>DowntimeFeed.jsx</code>) provides a clean, vertical snap feed that replaces brain-draining social media scrolling with structured micro-learning:
+  </p>
+
+  <div class="card-grid">
+    <div class="spec-card">
+      <div class="spec-card-title">📖 1. Word Forge (Lexicon Builder)</div>
+      <div class="spec-card-body">
+        <ul>
+          <li><strong>Query Engine:</strong> Generates randomized letter patterns (4–9 chars) and queries the <strong>Datamuse API</strong> (<code>api.datamuse.com/words?sp=????&md=dp</code>).</li>
+          <li><strong>POS Normalizer:</strong> Maps part-of-speech codes (noun, verb, adjective, adverb) and extracts definitions.</li>
+          <li><strong>Real Sentence Examples:</strong> Asynchronously queries <strong>DictionaryAPI.dev</strong> (<code>api.dictionaryapi.dev/api/v2/entries/en/{word}</code>) with an <code>AbortController</code> to layer real-world context sentences into the card.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">🔬 2. Deep Read (Wikipedia Engine)</div>
+      <div class="spec-card-body">
+        <ul>
+          <li><strong>Curated Clusters:</strong> Three balanced knowledge clusters: Defence & Military History, Computer Science, and Future Tech / Frontier Science.</li>
+          <li><strong>MediaWiki Query API:</strong> Queries <code>en.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages|description&explaintext=1</code>.</li>
+          <li><strong>Structured Block Parser:</strong> Strips trailing citation links and parses wikitext headings (<code>== Heading ==</code>) into structured typography blocks with thumbnail images.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-success">
+    <div class="callout-title">Automated Dwell-Tracking Mechanism (Zero-Click Activity Logging)</div>
+    Instead of requiring the user to tap an artificial "Done" button, <code>DowntimeFeed.jsx</code> deploys a native <code>IntersectionObserver</code> with a thin central threshold band. When a card crosses the vertical center of the screen and remains visible for more than <strong>2,500ms (2.5 seconds)</strong>, a background activity log is dispatched to <code>/api/activity</code>, recording the learning milestone automatically.
+  </div>
+
+  <div class="code-box">
+    <span class="com">// IntersectionObserver Center-Band Dwell Trigger (DowntimeFeed.jsx)</span><br>
+    <span class="kw">const</span> io = <span class="kw">new</span> <span class="fn">IntersectionObserver</span>((entries) =&gt; {<br>
+    &nbsp;&nbsp;entries.<span class="fn">forEach</span>(e =&gt; {<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">if</span> (e.isIntersecting) {<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;timers.<span class="fn">set</span>(key, <span class="fn">setTimeout</span>(() =&gt; <span class="fn">logActivity</span>(logKind, title), <span class="num">2500</span>));<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;} <span class="kw">else</span> { <span class="fn">clearTimeout</span>(timers.<span class="fn">get</span>(key)); timers.<span class="fn">delete</span>(key); }<br>
+    &nbsp;&nbsp;});<br>
+    }, { rootMargin: <span class="str">"-45% 0px -45% 0px"</span> }); <span class="com">// Thin 10% center detection band</span>
+  </div>
+
+  <div class="spec-card" style="margin-top: 6px;">
+    <div class="spec-card-title">🛡️ Resilient Network Fetching with AbortController</div>
+    <div class="spec-card-body">
+      All external API calls (Datamuse, DictionaryAPI, Wikipedia) feature strict timeout abort controllers (capped at 4s for dictionary and 10s for Wikipedia) and automatic unmount teardown, ensuring that flaky mobile network connections fail fast rather than hanging the user interface.
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAGE 11: DATA VISUALIZATIONS ==================== -->
+<div class="doc-page">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-num">10</span> Zero-Dependency Data Visualization Engine (Charts & Graphs)
+    </div>
+    <span class="pill">DATA VISUALIZATION</span>
+  </div>
+
+  <p>
+    Rather than importing bloated charting bundles (e.g., Chart.js at 150KB or Recharts at 400KB), SHIFT uses <strong>100% hand-crafted SVG primitives</strong> styled directly via CSS design tokens:
+  </p>
+
+  <table class="spec-table">
+    <thead>
+      <tr>
+        <th style="width: 25%;">Visualization Primitive</th>
+        <th style="width: 25%;">Technical Implementation</th>
+        <th style="width: 50%;">Rendered Metrics & Insights</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Donut Charts (<code>Donut</code>)</strong></td>
+        <td>SVG circle stroke manipulation with <code>strokeDasharray</code>, <code>strokeDashoffset</code>, and 3px gap calculations.</td>
+        <td>Category breakdown, feedback sentiment split (better vs same vs worse), and task status distribution.</td>
+      </tr>
+      <tr>
+        <td><strong>Activity Heatmap (<code>Heatmap</code>)</strong></td>
+        <td>17-week CSS grid of 119 date-keyed cells with 5-tier intensity color levels (<code>heat-0</code> to <code>heat-4</code>).</td>
+        <td>GitHub-style daily momentum visualization mapping completions over the preceding 4 months.</td>
+      </tr>
+      <tr>
+        <td><strong>Area Line Chart (<code>LineChart</code>)</strong></td>
+        <td>Mathematical point normalization: <code>polyline</code> path paired with an SVG <code>polygon</code> gradient area underlay.</td>
+        <td>8-week trailing rolling completion rate trends with dynamic gridlines at 0%, 50%, and 100%.</td>
+      </tr>
+      <tr>
+        <td><strong>Magnitude Bar List (<code>BarList</code>)</strong></td>
+        <td>Normalized percentage bar fill widths: <code>(item.value / scaleMax) * 100%</code>.</td>
+        <td>Relative category rankings, permanent task habit completion tallies, and untouched task counts.</td>
+      </tr>
+      <tr>
+        <td><strong>Circadian 2D Rhythm Matrix</strong></td>
+        <td>Dual breakdown mapping actions against Weekdays (Sun–Sat) and 4 Diurnal Buckets (Morning, Afternoon, Evening, Night).</td>
+        <td>Identifies peak biological productivity windows and circadian rhythms to schedule high-effort tasks effectively.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="sub-title">Live Vector SVG Demonstrations (Native Application Primitives)</div>
+  <div class="card-grid-3">
+    <div class="spec-card" style="text-align: center; padding: 10px;">
+      <div style="font-size: 8pt; font-weight: 700; margin-bottom: 4px;">SVG Donut Primitive</div>
+      <svg viewBox="0 0 120 120" width="100" height="100" style="display: inline-block;">
+        <circle cx="60" cy="60" r="45" fill="none" stroke="#1f2733" stroke-width="12" />
+        <circle cx="60" cy="60" r="45" fill="none" stroke="#3987e5" stroke-width="12" stroke-dasharray="140 142" stroke-linecap="round" transform="rotate(-90 60 60)" />
+        <circle cx="60" cy="60" r="45" fill="none" stroke="#0ca30c" stroke-width="12" stroke-dasharray="80 202" stroke-dashoffset="-143" stroke-linecap="round" transform="rotate(-90 60 60)" />
+        <text x="60" y="58" text-anchor="middle" font-family="Montserrat" font-size="16" font-weight="700" fill="#0b0f14">84%</text>
+        <text x="60" y="74" text-anchor="middle" font-family="Inter" font-size="8" fill="#718096">DONE</text>
+      </svg>
+    </div>
+
+    <div class="spec-card" style="text-align: center; padding: 10px;">
+      <div style="font-size: 8pt; font-weight: 700; margin-bottom: 8px;">17-Wk Heatmap Grid</div>
+      <div style="display: grid; grid-template-columns: repeat(7, 10px); gap: 3px; justify-content: center;">
+        <span style="width:10px;height:10px;background:#0ca30c;border-radius:2px;"></span>
+        <span style="width:10px;height:10px;background:#0ca30c;border-radius:2px;opacity:0.8;"></span>
+        <span style="width:10px;height:10px;background:#1f2733;border-radius:2px;"></span>
+        <span style="width:10px;height:10px;background:#0ca30c;border-radius:2px;"></span>
+        <span style="width:10px;height:10px;background:#0ca30c;border-radius:2px;opacity:0.5;"></span>
+        <span style="width:10px;height:10px;background:#0ca30c;border-radius:2px;"></span>
+        <span style="width:10px;height:10px;background:#1f2733;border-radius:2px;"></span>
+        <span style="width:10px;height:10px;background:#0ca30c;border-radius:2px;opacity:0.5;"></span>
+        <span style="width:10px;height:10px;background:#0ca30c;border-radius:2px;"></span>
+        <span style="width:10px;height:10px;background:#0ca30c;border-radius:2px;"></span>
+        <span style="width:10px;height:10px;background:#0ca30c;border-radius:2px;opacity:0.8;"></span>
+        <span style="width:10px;height:10px;background:#1f2733;border-radius:2px;"></span>
+        <span style="width:10px;height:10px;background:#0ca30c;border-radius:2px;"></span>
+        <span style="width:10px;height:10px;background:#0ca30c;border-radius:2px;"></span>
+      </div>
+      <div style="font-size: 7.5pt; color: #718096; margin-top: 6px;">119 Day Matrix</div>
+    </div>
+
+    <div class="spec-card" style="text-align: center; padding: 10px;">
+      <div style="font-size: 8pt; font-weight: 700; margin-bottom: 4px;">8-Wk Trend Sparkline</div>
+      <svg viewBox="0 0 140 70" width="120" height="60" style="display: inline-block;">
+        <polygon points="10,60 10,45 35,50 60,30 85,35 110,18 130,22 130,60" fill="rgba(57,135,229,0.15)" />
+        <polyline points="10,45 35,50 60,30 85,35 110,18 130,22" fill="none" stroke="#3987e5" stroke-width="2.5" />
+        <circle cx="130" cy="22" r="3.5" fill="#3987e5" />
+      </svg>
+      <div style="font-size: 7.5pt; color: #718096;">Weekly Rate %</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PAGE 12: HARDWARE, AUDIO & PHYSICS ==================== -->
+<div class="doc-page">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-num">11</span> Hardware Integration, Audio Synthesis & Compositor Physics
+    </div>
+    <span class="pill">HARDWARE & PHYSICS</span>
+  </div>
+
+  <p>
+    SHIFT delivers tactile, visceral satisfaction through direct browser hardware APIs without loading heavy multimedia assets:
+  </p>
+
+  <div class="card-grid">
+    <div class="spec-card">
+      <div class="spec-card-title">🎵 Web Audio Harmonic Triad</div>
+      <div class="spec-card-body">
+        Located in <code>celebratePayoff()</code> in <code>FocusLock.jsx</code>. Instantiates a native <code>AudioContext</code> and synthesizes a rising major triad:
+        <ul>
+          <li><strong>C5:</strong> 523.25 Hz</li>
+          <li><strong>E5:</strong> 659.25 Hz</li>
+          <li><strong>G5:</strong> 783.99 Hz</li>
+        </ul>
+        Each note uses an <code>OscillatorNode</code> (sine wave) connected to a <code>GainNode</code> with linear attack and exponential decay (0.32s). Zero audio file requests.
+      </div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">📳 Navigator Haptic Feedback</div>
+      <div class="spec-card-body">
+        Directly interfaces with mobile device vibration motors via <code>navigator.vibrate([0, 35, 45, 35])</code>. Generates a distinct double-tap tactile pulse upon task completion, reinforcing feelings of progress and psychological closure. Automatically disabled when unsupported or when reduced motion is preferred.
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-title">Compositor-Only Particle Engine (TapDroplets.jsx)</div>
+  <p>
+    Mounted globally at the application root, <code>TapDroplets.jsx</code> provides ambient physical feedback on every pointer-down event without affecting frame rates:
+  </p>
+
+  <div class="card-grid">
+    <div class="spec-card">
+      <div class="spec-card-title">🌊 Parabolic Particle Arc Mathematics</div>
+      <div class="spec-card-body">
+        Spawns 6 lightweight droplet elements per tap. Particles travel along a randomized radial vector between 22px and 58px over 430ms to 680ms, influenced by a 26px gravitational downward sag.
+      </div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">🚫 Zero Filter Re-Rasterization</div>
+      <div class="spec-card-body">
+        Crucially, droplets operate strictly via CSS <code>transform</code> and <code>opacity</code>. CSS <code>filter: blur()</code> was eliminated because animated SVG filters force CPU re-rasterization on every frame, which previously crashed mobile Safari tabs.
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-title">Slide-to-Confirm Intentionality Mechanism (SlideToConfirm.jsx)</div>
+  <div class="code-box">
+    <span class="com">// Web Animations API Spring Overshoot (SlideToConfirm.jsx)</span><br>
+    handleRef.current.<span class="fn">animate</span>([<br>
+    &nbsp;&nbsp;{ transform: handleRef.current.style.transform },<br>
+    &nbsp;&nbsp;{ transform: <span class="str">"translateX(0)"</span> }<br>
+    ], { duration: <span class="num">320</span>, easing: <span class="str">"cubic-bezier(0.34, 1.3, 0.64, 1)"</span>, fill: <span class="str">"forwards"</span> });
+  </div>
+
+  <div class="callout callout-success">
+    <div class="callout-title">Accessible Design & Prefers-Reduced-Motion Compliance</div>
+    All kinetic effects across SHIFT—including particle droplets, slide-to-confirm springs, flip text typography, and audio/haptic celebration chimes—query <code>window.matchMedia("(prefers-reduced-motion: reduce)")</code>. When active, durations snap to 0ms and audio/vibration calls no-op cleanly.
+  </div>
+</div>
+
+<!-- ==================== PAGE 13: PERFORMANCE, ROADMAP & SIGN-OFF ==================== -->
+<div class="doc-page">
+  <div class="section-header">
+    <div class="section-title">
+      <span class="section-num">12</span> Performance Engineering, Security & Future Roadmap
+    </div>
+    <span class="pill">PRODUCTION & FUTURE</span>
+  </div>
+
+  <div class="card-grid">
+    <div class="spec-card">
+      <div class="spec-card-title">⚡ Performance & Bundle Optimization</div>
+      <div class="spec-card-body">
+        <ul>
+          <li><strong>Zero CSS-in-JS Overhead:</strong> Pure native CSS custom properties compiled into a single cacheable stylesheet (<code>index.css</code>).</li>
+          <li><strong>Strict Memory Management:</strong> All timers, observers, and event listeners feature automatic teardown via React <code>useEffect</code> return functions.</li>
+          <li><strong>Compositor-Only Animations:</strong> No repaints during slider or droplet animations; runs at 60/120fps on mobile.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">🛡️ Security & Tenant Isolation</div>
+      <div class="spec-card-body">
+        <ul>
+          <li><strong>Strict JWT Scoping:</strong> All queries are hard-scoped via <code>{ user: req.userId }</code>, preventing horizontal privilege escalation.</li>
+          <li><strong>Bcrypt Salt Hashing:</strong> 10 rounds of Blowfish encryption for stored credentials.</li>
+          <li><strong>Boot Guard:</strong> Process halts immediately if <code>MONGO_URI</code> or <code>JWT_SECRET</code> are missing from the environment.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub-title">Future Architectural Roadmap</div>
+  <table class="spec-table">
+    <thead>
+      <tr>
+        <th style="width: 25%;">Roadmap Milestone</th>
+        <th style="width: 25%;">Target Technology</th>
+        <th style="width: 50%;">Architectural Impact & Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Phase 2: Local-First Offline Sync</strong></td>
+        <td>IndexedDB + CRDTs / RxDB</td>
+        <td>Enables full offline task creation and local scoring when disconnected, syncing back to MongoDB Atlas upon reconnection.</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 3: Biometric Sensor Integration</strong></td>
+        <td>Web Bluetooth / Apple HealthKit</td>
+        <td>Automatically pulls physiological stress and recovery indicators (Heart Rate Variability, Sleep Score) to populate the "Energy Tank".</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 4: Agentic Task Breakdown</strong></td>
+        <td>Gemini API / LLM Microservice</td>
+        <td>Allows users to dump large, intimidating goals into an AI decompose pipeline that fractures them into 5-to-15 minute actionable bites.</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 5: Calendar Two-Way Sync</strong></td>
+        <td>Google Calendar & CalDAV</td>
+        <td>Automatically detects free temporal slots between calendar meetings to dynamically recommend appropriate tasks.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- SIGN-OFF BLOCK -->
+  <div style="margin-top: 28px; padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: flex-end;">
+    <div>
+      <div style="font-size: 11pt; font-weight: 800; font-family: 'Montserrat', sans-serif; color: #0b0f14;">SHIFT ⚡ — MOMENTUM ON DEMAND</div>
+      <div style="font-size: 8pt; color: #718096; margin-top: 2px;">Architected and Engineered by Dhruv Solanki • Released Under ISC License</div>
+    </div>
+    <div style="text-align: right;">
+      <div style="font-size: 8pt; font-weight: 700; color: #3987e5;">SPECIFICATION COMPLETE & VALIDATED</div>
+      <div style="font-size: 7.5pt; color: #a0aec0;">Antigravity IDE & Visual Studio Code Verification Pass</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
+"""
+
+html_file = os.path.abspath("SHIFT_Technical_Specifications.html")
+pdf_file = os.path.abspath("SHIFT_Technical_Specifications.pdf")
+
+with open(html_file, "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+print(f"HTML generated at: {html_file} ({os.path.getsize(html_file)} bytes)")
+
+chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+cmd = [
+    chrome_path,
+    "--headless=new",
+    "--disable-gpu",
+    "--no-pdf-header-footer",
+    f"--print-to-pdf={pdf_file}",
+    f"file:///{html_file}"
+]
+
+print("Compiling PDF with Chrome headless...")
+res = subprocess.run(cmd, capture_output=True, text=True)
+time.sleep(1.0)
+
+if os.path.exists(pdf_file):
+    size = os.path.getsize(pdf_file)
+    print(f"SUCCESS: PDF generated at: {pdf_file} ({size} bytes)")
+else:
+    print(f"ERROR: PDF not found. Chrome stdout: {res.stdout}, stderr: {res.stderr}")

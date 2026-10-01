@@ -105,7 +105,17 @@ function MobileShell({ user, logout }) {
         loop: false,
         align: "start",
         skipSnaps: false,
-        startIndex: initialIndexRef.current
+        startIndex: initialIndexRef.current,
+        // A drag that STARTS inside the slide-to-confirm bar belongs to that
+        // slider, not to page navigation. Embla gates every drag through this
+        // on pointerdown, so returning false here means it never engages for
+        // that gesture — the finger drags the handle, the page stays put.
+        // (A React stopPropagation can't do this: embla's listener is native
+        // on the viewport, above where React's delegated handlers run.)
+        watchDrag: (_api, evt) => {
+            const t = evt.target;
+            return !(t instanceof Element && t.closest(".slide-confirm"));
+        }
     });
 
     // One ref node feeds both embla (swipe) and our tap-slide animation.
@@ -195,8 +205,8 @@ function MobileShell({ user, logout }) {
         [emblaApi]
     );
 
-    // Bottom-nav pill motion, ported from the reference bar (see the vendored
-    // liquid_glass_widgets / AttendEase root_screen.dart): one pill that is the
+    // Bottom-nav pill motion, ported from the reference bar (design from the
+    // liquid_glass_widgets Flutter package + AttendEase root_screen.dart): one pill that is the
     // single source of truth for its position, tracks the swipe frame-for-frame,
     // and does the "jelly" stretch — elongating along its travel and contracting
     // on arrival. Driven straight to the DOM through navRef on a spring, never

@@ -99,7 +99,7 @@ router.put("/:id", async (req, res) => {
             { _id: req.params.id, user: req.userId },
             updates,
             {
-                new: true,
+                returnDocument: "after",
                 runValidators: true
             }
         );

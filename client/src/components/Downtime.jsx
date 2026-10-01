@@ -32,7 +32,12 @@ function WordCard({ entry }) {
                 <div key={i} className="vocab-meaning">
                     {m.pos && <span className="vocab-pos">{m.pos}</span>}
                     <p className="vocab-def">{m.definition}</p>
-                    <p className="vocab-example">{m.example}</p>
+                    {m.example && (
+                        <div className="vocab-example-block">
+                            <span className="vocab-example-label">Example</span>
+                            <p className="vocab-example">"{m.example}"</p>
+                        </div>
+                    )}
                 </div>
             ))}
         </div>
@@ -205,7 +210,6 @@ function Downtime({ open, onClose }) {
                             key="words"
                             snap="mandatory"
                             fetchNext={fetchWordItem}
-                            keyOf={(w) => w.word}
                             titleOf={(w) => w.word}
                             logKind="vocab"
                             loadingLabel="Forging words worth keeping…"
@@ -223,7 +227,6 @@ function Downtime({ open, onClose }) {
                             snap="mandatory"
                             cardClass="dt-card--article"
                             fetchNext={fetchArticleItem}
-                            keyOf={(a) => a.topic}
                             titleOf={(a) => a.title}
                             logKind="read"
                             loadingLabel="Pulling something worth your minutes…"

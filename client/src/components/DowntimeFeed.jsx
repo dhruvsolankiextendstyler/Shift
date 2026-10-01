@@ -11,12 +11,13 @@ const PREFETCH_WITHIN = 1;
 // "Done" button. Completion + prefetch both ride a single IntersectionObserver
 // with a thin centre band, so "the card crossing screen-centre" is the one
 // you're on, regardless of card height (words fill a screen; articles are
-// taller). `fetchNext(prev)` returns the next item (may throw); `keyOf` is a
-// stable dedupe/React key; `titleOf` is what History records; `logKind` is
-// "vocab" | "read"; `snap` is "mandatory" (words) | "proximity" (articles).
+// taller). `fetchNext(prev)` returns the next item (may throw); `titleOf` is
+// what History records; `logKind` is "vocab" | "read"; `snap` is "mandatory"
+// (words) | "proximity" (articles). Cards are keyed by position (append-only
+// feed) — never by content, since a repeated word/article would collide and
+// React drops duplicate-keyed nodes, leaving blank gaps in the feed.
 function DowntimeFeed({
     fetchNext,
-    keyOf,
     titleOf,
     logKind,
     renderItem,
@@ -25,7 +26,10 @@ function DowntimeFeed({
     loadingLabel
 }) {
     const [items, setItems] = useState([]);
-    const [failed, setFailed] = useState(false);
+    // "loading" | "ready" | "error"
+    const [status, setStatus] = useState("loading");
+    // Whether a "load more" at the tail also failed (items already exist).
+    const [tailFailed, setTailFailed] = useState(false);
 
     const itemsRef = useRef([]);
     const loadingRef = useRef(false);
@@ -39,7 +43,7 @@ function DowntimeFeed({
     }, [items]);
 
     // Append the next item. Serialized via loadingRef so mount + scroll can't
-    // double-fetch. Never throws — a failure flips the retry tail on.
+    // double-fetch. Never throws — a failure flips the error state on.
     const loadMore = useCallback(async () => {
         if (loadingRef.current) return;
         loadingRef.current = true;
@@ -47,10 +51,27 @@ function DowntimeFeed({
             const prev =
                 itemsRef.current[itemsRef.current.length - 1] || null;
             const item = await fetchNext(prev);
-            setItems((cur) => [...cur, item]);
-            setFailed(false);
+            setItems((cur) => {
+                // Sync the ref synchronously: the mount effect chains a second
+                // loadMore in a microtask, before the [items] effect runs, so
+                // without this the chained call reads a stale (empty) buffer,
+                // passes prev=null, and can refetch the very same item.
+                const next = [...cur, item];
+                itemsRef.current = next;
+                return next;
+            });
+            setStatus("ready");
+            setTailFailed(false);
         } catch {
-            setFailed(true);
+            // Distinguish: initial failure (no items yet) vs tail failure.
+            setItems((cur) => {
+                if (cur.length === 0) {
+                    setStatus("error");
+                } else {
+                    setTailFailed(true);
+                }
+                return cur;
+            });
         } finally {
             loadingRef.current = false;
         }
@@ -66,19 +87,17 @@ function DowntimeFeed({
 
     // The observer callback lives in a ref so the once-created observer always
     // runs the latest closure (loadMore/items change over the feed's life).
+    // Cards carry their array index in data-key (append-only feed → stable).
     const onIntersect = useCallback(
         (entries) => {
             for (const e of entries) {
                 const key = e.target.dataset.key;
-                if (!key) continue;
+                if (key == null) continue;
+                const idx = Number(key);
 
                 if (e.isIntersecting) {
                     // Prefetch when this card is near the tail.
-                    const idx = itemsRef.current.findIndex(
-                        (it) => keyOf(it) === key
-                    );
                     if (
-                        idx >= 0 &&
                         idx >= itemsRef.current.length - 1 - PREFETCH_WITHIN
                     ) {
                         loadMore();
@@ -92,9 +111,7 @@ function DowntimeFeed({
                             timersRef.current.delete(key);
                             if (seenRef.current.has(key)) return;
                             seenRef.current.add(key);
-                            const it = itemsRef.current.find(
-                                (x) => keyOf(x) === key
-                            );
+                            const it = itemsRef.current[idx];
                             logActivity(logKind, it ? titleOf(it) : "");
                         }, DWELL_MS);
                         timersRef.current.set(key, t);
@@ -109,7 +126,7 @@ function DowntimeFeed({
                 }
             }
         },
-        [keyOf, titleOf, logKind, loadMore]
+        [titleOf, logKind, loadMore]
     );
 
     const onIntersectRef = useRef(onIntersect);
@@ -141,30 +158,57 @@ function DowntimeFeed({
         []
     );
 
+    // Full-panel states (before any item has ever loaded).
+    if (status === "loading") {
+        return (
+            <div className="dt-feed dt-feed--status">
+                <p className="dt-status message">{loadingLabel}</p>
+            </div>
+        );
+    }
+
+    if (status === "error") {
+        return (
+            <div className="dt-feed dt-feed--status">
+                <div className="dt-status-panel">
+                    <p className="message">Couldn't reach the source.</p>
+                    <button
+                        className="shift-button"
+                        onClick={() => {
+                            setStatus("loading");
+                            loadMore();
+                        }}
+                    >
+                        Try again
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={`dt-feed dt-feed--${snap}`}>
-            {items.length === 0 && !failed && (
-                <p className="dt-status message">{loadingLabel}</p>
-            )}
+            {items.map((it, i) => (
+                <section
+                    key={i}
+                    data-key={i}
+                    ref={cardRef}
+                    className={`dt-card ${cardClass}`}
+                >
+                    {renderItem(it)}
+                </section>
+            ))}
 
-            {items.map((it) => {
-                const k = keyOf(it);
-                return (
-                    <section
-                        key={k}
-                        data-key={k}
-                        ref={cardRef}
-                        className={`dt-card ${cardClass}`}
-                    >
-                        {renderItem(it)}
-                    </section>
-                );
-            })}
-
-            {failed && (
+            {tailFailed && (
                 <div className="dt-tail">
-                    <p className="message">Couldn't reach the source.</p>
-                    <button className="shift-button" onClick={loadMore}>
+                    <p className="message">Couldn't load more.</p>
+                    <button
+                        className="shift-button"
+                        onClick={() => {
+                            setTailFailed(false);
+                            loadMore();
+                        }}
+                    >
                         Try again
                     </button>
                 </div>

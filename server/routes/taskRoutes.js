@@ -50,7 +50,7 @@ router.put("/:id", async (req, res) => {
         const task = await Task.findOneAndUpdate(
             { _id: req.params.id, user: req.userId },
             update,
-            { new: true, runValidators: true }
+            { returnDocument: "after", runValidators: true }
         );
 
         if (!task) {
@@ -71,7 +71,7 @@ router.delete("/:id", async (req, res) => {
         const task = await Task.findOneAndUpdate(
             { _id: req.params.id, user: req.userId },
             { status: "deleted" },
-            { new: true }
+            { returnDocument: "after" }
         );
 
         if (!task) {
