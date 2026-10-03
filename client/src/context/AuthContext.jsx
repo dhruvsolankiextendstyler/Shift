@@ -73,6 +73,9 @@ export function AuthProvider({ children }) {
     const signup = (name, email, password) =>
         authenticate("/auth/register", { name, email, password });
 
+    const loginWithGoogle = (credential) =>
+        authenticate("/auth/google", { credential });
+
     const logout = () => {
         clearToken();
         setUserState(null);
@@ -80,7 +83,7 @@ export function AuthProvider({ children }) {
 
     return (
         <AuthContext.Provider
-            value={{ user, loading, login, signup, logout }}
+            value={{ user, loading, login, signup, loginWithGoogle, logout }}
         >
             {children}
         </AuthContext.Provider>

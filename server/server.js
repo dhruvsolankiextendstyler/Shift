@@ -1,7 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 // Fail fast if critical secrets are missing rather than starting a
 // half-configured server (e.g. tokens signed with an undefined secret).

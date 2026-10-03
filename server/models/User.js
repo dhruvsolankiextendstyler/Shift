@@ -19,13 +19,23 @@ const userSchema = new mongoose.Schema(
 
         password: {
             type: String,
-            required: true,
-            minlength: 6
-        }
+            minlength: 6,
+            required: function () {
+                return !this.googleId && this.authProvider !== "google";
+            }
+        },
 
-        // Downtime engagement (Deep Read / Word Forge "Done") now lives in the
-        // Activity model as dated per-activity records — not as counters here —
-        // so it can feed both Insights and the History calendar by date.
+        googleId: {
+            type: String,
+            default: null,
+            sparse: true
+        },
+
+        authProvider: {
+            type: String,
+            enum: ["local", "google"],
+            default: "local"
+        }
     },
     {
         timestamps: true
@@ -35,7 +45,7 @@ const userSchema = new mongoose.Schema(
 // Hash the password before saving whenever it has changed.
 // Async middleware in Mongoose resolves on return; no next() needed.
 userSchema.pre("save", async function hashPassword() {
-    if (!this.isModified("password")) {
+    if (!this.isModified("password") || !this.password) {
         return;
     }
 
@@ -45,6 +55,9 @@ userSchema.pre("save", async function hashPassword() {
 
 // Compare a plain-text candidate against the stored hash.
 userSchema.methods.comparePassword = function comparePassword(candidate) {
+    if (!this.password) {
+        return false;
+    }
     return bcrypt.compare(candidate, this.password);
 };
 
