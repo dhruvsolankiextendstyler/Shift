@@ -140,6 +140,15 @@ function recommendTask(
 
     scoredTasks.sort((a, b) => b.score - a.score);
 
+    // If multiple tasks tie for the highest score, pick among them rather than
+    // always deterministically picking the first in array order.
+    const topScore = scoredTasks[0].score;
+    const topTied = scoredTasks.filter((item) => item.score === topScore);
+    if (topTied.length > 1) {
+        const randomIndex = Math.floor(Math.random() * topTied.length);
+        return topTied[randomIndex].task;
+    }
+
     return scoredTasks[0].task;
 }
 

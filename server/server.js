@@ -39,9 +39,11 @@ const sessionRoutes = require("./routes/sessionRoutes");
 const recommendationRoutes = require("./routes/recommendationRoutes");
 const actionRoutes = require("./routes/actionRoutes");
 const activityRoutes = require("./routes/activityRoutes");
+const statsRoutes = require("./routes/statsRoutes");
 const authMiddleware = require("./middleware/authMiddleware");
 
 app.use("/api/auth", authRoutes);
+app.use("/api/stats", statsRoutes);
 
 // Everything below requires a valid token; req.userId is set by the
 // middleware and used to scope all data to the authenticated user.

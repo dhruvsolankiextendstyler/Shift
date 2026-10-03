@@ -8,10 +8,12 @@ import TaskFormFields, {
     EFFORT_OPTIONS,
     TYPE_OPTIONS
 } from "../components/TaskFormFields";
-
+import { useIsMobile } from "../hooks/useIsMobile";
+import Footer from "../components/Footer";
 
 function Tasks() {
     const { toast } = useToast();
+    const isMobile = useIsMobile();
 
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -417,6 +419,8 @@ function Tasks() {
                     </button>
                 </div>
             </Modal>
+
+            {isMobile && <Footer isMobile />}
         </div>
     );
 }

@@ -9,16 +9,22 @@ const sessionSchema = new mongoose.Schema(
             index: true
         },
 
+        category: {
+            type: String,
+            trim: true,
+            default: null
+        },
+
         mood: {
             type: String,
-            required: true,
-            trim: true
+            trim: true,
+            default: null
         },
 
         energy: {
             type: String,
-            required: true,
-            trim: true
+            trim: true,
+            default: null
         },
 
         availableTime: {

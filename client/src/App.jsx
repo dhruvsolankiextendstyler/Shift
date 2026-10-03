@@ -24,6 +24,7 @@ import Insights from "./pages/Insights";
 import MobileShell from "./components/MobileShell";
 import Modal from "./components/Modal";
 import TapDroplets from "./components/TapDroplets";
+import Footer from "./components/Footer";
 
 function AppShell() {
     const { user, loading, logout: rawLogout } = useAuth();
@@ -187,21 +188,6 @@ function NotFound() {
                 BACK TO NOW →
             </Link>
         </div>
-    );
-}
-
-function Footer() {
-    return (
-        <footer className="footer">
-            <span>SHIFT — momentum on demand</span>
-            <a
-                href="https://dhruv-solanki-about.vercel.app/"
-                target="_blank"
-                rel="noopener noreferrer"
-            >
-                Crafted by Dhruv Solanki ↗
-            </a>
-        </footer>
     );
 }
 

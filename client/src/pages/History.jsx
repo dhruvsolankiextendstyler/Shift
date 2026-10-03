@@ -5,6 +5,8 @@ import { dayKey } from "./Insights";
 import ErrorState from "../components/ErrorState";
 import Modal from "../components/Modal";
 import TaskFormFields from "../components/TaskFormFields";
+import { useIsMobile } from "../hooks/useIsMobile";
+import Footer from "../components/Footer";
 
 // History is a calendar of everything the user has done — task actions (from
 // /actions) merged with downtime sessions (from /activity/history), the SAME
@@ -103,6 +105,7 @@ function buildMonthCells(year, month) {
 const level = (c) => (c === 0 ? 0 : c === 1 ? 1 : c === 2 ? 2 : c <= 4 ? 3 : 4);
 
 function History({ active = true }) {
+    const isMobile = useIsMobile();
     const { entries, loading, error, reload } = useActivityHistory();
     const [busyId, setBusyId] = useState(null);
 
@@ -555,6 +558,8 @@ function History({ active = true }) {
                 onSave={saveManualTask}
                 categoryOptions={existingCategories}
             />
+
+            {isMobile && <Footer isMobile />}
         </div>
     );
 }

@@ -14,8 +14,7 @@ import FlipText from "../components/FlipText";
 // task is started, so finishing one returns you to a fresh check-in — a
 // deliberate, controlled reset rather than an accidental unmount.
 const flowCache = {
-    mood: "",
-    energy: "",
+    category: "",
     time: "",
     sessionId: "",
     recommendation: null,
@@ -23,8 +22,7 @@ const flowCache = {
 };
 
 function resetFlowCache() {
-    flowCache.mood = "";
-    flowCache.energy = "";
+    flowCache.category = "";
     flowCache.time = "";
     flowCache.sessionId = "";
     flowCache.recommendation = null;
@@ -34,9 +32,11 @@ function resetFlowCache() {
 function Now({ active = true }) {
     const navigate = useNavigate();
 
-    const [mood, setMood] = useState(flowCache.mood);
-    const [energy, setEnergy] = useState(flowCache.energy);
+    const [category, setCategory] = useState(flowCache.category);
     const [time, setTime] = useState(flowCache.time);
+
+    const [categories, setCategories] = useState([]);
+    const [categoriesLoading, setCategoriesLoading] = useState(true);
 
     const [sessionId, setSessionId] = useState(flowCache.sessionId);
     const [recommendation, setRecommendation] = useState(
@@ -48,19 +48,54 @@ function Now({ active = true }) {
     // null | "empty" (no active tasks) | "no-fit" (tasks exist, none fit time)
     const [emptyReason, setEmptyReason] = useState(flowCache.emptyReason);
 
+    // Fetch existing categories from the user's active task pool
+    // Re-fetch whenever this tab becomes active so changes from Tasks page reflect immediately.
+    useEffect(() => {
+        let mounted = true;
+
+        async function fetchUserCategories() {
+            if (!active) return;
+            try {
+                const response = await apiFetch("/tasks");
+                if (!response.ok) return;
+                const tasks = await response.json();
+                if (mounted && Array.isArray(tasks)) {
+                    const activeCategories = [
+                        ...new Set(
+                            tasks
+                                .filter((t) => t.status === "active")
+                                .map((t) => t.category?.trim())
+                                .filter(Boolean)
+                        )
+                    ].sort((a, b) => a.localeCompare(b));
+                    setCategories(activeCategories);
+                }
+            } catch (err) {
+                console.error("Failed to load categories for Now:", err);
+            } finally {
+                if (mounted) setCategoriesLoading(false);
+            }
+        }
+
+        fetchUserCategories();
+
+        return () => {
+            mounted = false;
+        };
+    }, [active]);
+
     // Mirror the flow into the module cache so it's there when Now remounts.
     useEffect(() => {
-        flowCache.mood = mood;
-        flowCache.energy = energy;
+        flowCache.category = category;
         flowCache.time = time;
         flowCache.sessionId = sessionId;
         flowCache.recommendation = recommendation;
         flowCache.emptyReason = emptyReason;
-    }, [mood, energy, time, sessionId, recommendation, emptyReason]);
+    }, [category, time, sessionId, recommendation, emptyReason]);
 
     const handleSubmit = async () => {
-        if (!mood || !energy || !time) {
-            setMessage("Give us all three first — then we'll move.");
+        if (!category || !time) {
+            setMessage("Pick what you want to do and how much time you have.");
             return;
         }
 
@@ -68,11 +103,14 @@ function Now({ active = true }) {
         setEmptyReason(null);
 
         try {
+            // Surprise Me sends null as category, triggering general recommendation
+            const selectedCategory =
+                category === "Surprise Me" ? null : category;
+
             const sessionResponse = await apiFetch("/sessions", {
                 method: "POST",
                 body: JSON.stringify({
-                    mood,
-                    energy,
+                    category: selectedCategory,
                     availableTime: time
                 })
             });
@@ -126,11 +164,10 @@ function Now({ active = true }) {
 
     // Ditch the current recommendation and go back to a clean check-in. Without
     // this the recommendation card is a dead end (no way back to change your
-    // time/energy) and the cached pick lingers across tab switches.
+    // category/time) and the cached pick lingers across tab switches.
     const startOver = () => {
         resetFlowCache();
-        setMood("");
-        setEnergy("");
+        setCategory("");
         setTime("");
         setSessionId("");
         setRecommendation(null);
@@ -170,6 +207,9 @@ function Now({ active = true }) {
         }
     };
 
+    // Options include all unique active categories plus "Surprise Me"
+    const categoryOptions = [...categories, "Surprise Me"];
+
     return (
         <div className="now-page">
 
@@ -184,56 +224,50 @@ function Now({ active = true }) {
                         </h1>
 
                         <p className="subtitle">
-                            Tell us where your head's at. We'll hand
-                            you the single thing worth doing right now.
+                            Pick what you want to do and how much time you have.
+                            We'll hand you the single thing worth doing right now.
                         </p>
                     </div>
 
                     <div className="checkin-section">
-                        <h2>Where's your head at?</h2>
+                        <h2>What do you want to do?</h2>
 
                         <div className="option-grid">
-                            {[
-                                "low",
-                                "okay",
-                                "good",
-                                "great",
-                                "angry",
-                                "overwhelmed"
-                            ].map((item) => (
+                            {categoryOptions.map((item) => (
                                 <button
                                     key={item}
                                     className={`option-button ${
-                                        mood === item
+                                        category === item
                                             ? "selected"
                                             : ""
+                                    } ${
+                                        item === "Surprise Me"
+                                            ? "surprise-button"
+                                            : ""
                                     }`}
-                                    onClick={() => setMood(item)}
+                                    onClick={() => setCategory(item)}
                                 >
-                                    {item}
+                                    {item === "Surprise Me"
+                                        ? "✦ Surprise Me"
+                                        : item}
                                 </button>
                             ))}
                         </div>
-                    </div>
 
-                    <div className="checkin-section">
-                        <h2>How's the tank?</h2>
-
-                        <div className="option-grid three">
-                            {["low", "medium", "high"].map((item) => (
+                        {!categoriesLoading && categories.length === 0 && (
+                            <p className="category-hint">
+                                No task categories found yet. Pick{" "}
+                                <strong>Surprise Me</strong> or add tasks in{" "}
                                 <button
-                                    key={item}
-                                    className={`option-button ${
-                                        energy === item
-                                            ? "selected"
-                                            : ""
-                                    }`}
-                                    onClick={() => setEnergy(item)}
+                                    type="button"
+                                    className="link-inline-btn"
+                                    onClick={() => navigate("/tasks")}
                                 >
-                                    {item}
-                                </button>
-                            ))}
-                        </div>
+                                    Tasks
+                                </button>{" "}
+                                to populate your categories.
+                            </p>
+                        )}
                     </div>
 
                     <div className="checkin-section">
@@ -265,12 +299,17 @@ function Now({ active = true }) {
                     {emptyReason === "no-fit" && (
                         <div className="empty-state">
                             <p className="message">
-                                Nothing in your pool fits{" "}
-                                {time === 60
-                                    ? "an hour"
-                                    : `${time} min`}{" "}
-                                right now. Pick a longer window, or add
-                                a shorter task.
+                                {category && category !== "Surprise Me"
+                                    ? `Nothing in "${category}" fits ${
+                                          time === 60
+                                              ? "an hour"
+                                              : `${time} min`
+                                      } right now. Pick a longer window, or add a shorter task.`
+                                    : `Nothing in your pool fits ${
+                                          time === 60
+                                              ? "an hour"
+                                              : `${time} min`
+                                      } right now. Pick a longer window, or add a shorter task.`}
                             </p>
                             <button
                                 className="secondary-button"
@@ -284,8 +323,9 @@ function Now({ active = true }) {
                     {emptyReason === "empty" && (
                         <div className="empty-state">
                             <p className="message">
-                                Your pool's empty — add a task and
-                                SHIFT has something to hand you.
+                                {category && category !== "Surprise Me"
+                                    ? `No active tasks found in "${category}". Add a task to this category first.`
+                                    : "Your pool's empty — add a task and SHIFT has something to hand you."}
                             </p>
                             <button
                                 className="secondary-button"

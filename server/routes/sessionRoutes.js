@@ -7,8 +7,9 @@ const router = express.Router();
 router.post("/", async (req, res) => {
     try {
         const session = await Session.create({
-            mood: req.body.mood,
-            energy: req.body.energy,
+            category: req.body.category || null,
+            mood: req.body.mood || null,
+            energy: req.body.energy || null,
             availableTime: req.body.availableTime,
             user: req.userId
         });

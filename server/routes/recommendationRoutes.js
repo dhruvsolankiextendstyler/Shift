@@ -21,10 +21,23 @@ router.post("/", async (req, res) => {
             });
         }
 
-        const tasks = await Task.find({
+        const query = {
             user: req.userId,
             status: "active"
-        });
+        };
+
+        if (
+            session.category &&
+            typeof session.category === "string" &&
+            session.category.trim().toLowerCase() !== "surprise me"
+        ) {
+            query.category = new RegExp(
+                `^${session.category.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+                "i"
+            );
+        }
+
+        const tasks = await Task.find(query);
 
         const recentActions = await Action.find({ user: req.userId })
             .populate("taskId")
@@ -91,7 +104,8 @@ router.post("/", async (req, res) => {
                     ? "No task fits your time window"
                     : "No active tasks available",
                 reason: tasks.length ? "no-fit" : "empty",
-                availableTime: session.availableTime
+                availableTime: session.availableTime,
+                category: session.category || null
             });
         }
 
