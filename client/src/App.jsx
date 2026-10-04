@@ -25,6 +25,7 @@ import Saved from "./pages/Saved";
 import MobileShell from "./components/MobileShell";
 import Modal from "./components/Modal";
 import TapDroplets from "./components/TapDroplets";
+import DesktopCursor from "./components/DesktopCursor";
 import Footer from "./components/Footer";
 import OfflineIndicator from "./components/OfflineIndicator";
 
@@ -220,6 +221,7 @@ function App() {
             <AuthProvider>
                 <AppShell />
                 <TapDroplets />
+                <DesktopCursor />
             </AuthProvider>
         </ToastProvider>
     );
