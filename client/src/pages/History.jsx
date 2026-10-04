@@ -7,6 +7,7 @@ import Modal from "../components/Modal";
 import TaskFormFields from "../components/TaskFormFields";
 import { useIsMobile } from "../hooks/useIsMobile";
 import Footer from "../components/Footer";
+import { computeDailyReflection } from "../services/reflection";
 
 // History is a calendar of everything the user has done — task actions (from
 // /actions) merged with downtime sessions (from /activity/history), the SAME
@@ -273,7 +274,10 @@ function History({ active = true }) {
         }
     };
 
-    const selectedEntries = byDay[selectedKey] || [];
+    const selectedEntries = useMemo(
+        () => byDay[selectedKey] || [],
+        [byDay, selectedKey]
+    );
     const selectedLabel = new Date(
         selectedKey + "T00:00:00"
     ).toLocaleDateString(undefined, {
@@ -281,6 +285,20 @@ function History({ active = true }) {
         month: "long",
         day: "numeric"
     });
+
+    const dailyReflection = useMemo(() => {
+        const actions = selectedEntries
+            .filter((e) => e.kind === "task" && e.action)
+            .map((e) => e.action);
+        const activities = selectedEntries
+            .filter((e) => e.kind !== "task")
+            .map((e) => ({
+                type: e.kind,
+                title: e.title,
+                completedAt: e.date
+            }));
+        return computeDailyReflection(actions, activities, new Date(selectedKey + "T12:00:00"));
+    }, [selectedEntries, selectedKey]);
 
     const heading = (
         <div className="page-heading">
@@ -438,6 +456,15 @@ function History({ active = true }) {
                               }`
                             : "Nothing logged"}
                     </h2>
+
+                    {dailyReflection.hasData && (
+                        <div className="cal-reflection-banner">
+                            <p className="cal-reflection-obs">{dailyReflection.observation}</p>
+                            {dailyReflection.secondaryObservation && (
+                                <p className="cal-reflection-sub">{dailyReflection.secondaryObservation}</p>
+                            )}
+                        </div>
+                    )}
 
                     {selectedEntries.length === 0 ? (
                         <p className="cal-empty">

@@ -37,6 +37,7 @@ function DowntimeFeed({
     const seenRef = useRef(new Set()); // item keys already logged (per open)
     const timersRef = useRef(new Map()); // key -> dwell timeout
     const ioRef = useRef(null);
+    const feedRef = useRef(null);
 
     useEffect(() => {
         itemsRef.current = items;
@@ -186,8 +187,24 @@ function DowntimeFeed({
         );
     }
 
+    const onKeyDown = (e) => {
+        if (e.key === "ArrowDown" || e.key === "PageDown" || (e.key === " " && !e.target.closest("button, a, input"))) {
+            e.preventDefault();
+            feedRef.current?.scrollBy({ top: feedRef.current.clientHeight, behavior: "smooth" });
+        } else if (e.key === "ArrowUp" || e.key === "PageUp") {
+            e.preventDefault();
+            feedRef.current?.scrollBy({ top: -feedRef.current.clientHeight, behavior: "smooth" });
+        }
+    };
+
     return (
-        <div className={`dt-feed dt-feed--${snap}`}>
+        <div
+            ref={feedRef}
+            tabIndex={0}
+            onKeyDown={onKeyDown}
+            className={`dt-feed dt-feed--${snap}`}
+            aria-label={`${logKind === "vocab" ? "Words" : "Articles"} feed`}
+        >
             {items.map((it, i) => (
                 <section
                     key={i}

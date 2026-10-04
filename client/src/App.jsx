@@ -21,10 +21,12 @@ import Now from "./pages/Now";
 import Tasks from "./pages/Tasks";
 import History from "./pages/History";
 import Insights from "./pages/Insights";
+import Saved from "./pages/Saved";
 import MobileShell from "./components/MobileShell";
 import Modal from "./components/Modal";
 import TapDroplets from "./components/TapDroplets";
 import Footer from "./components/Footer";
+import OfflineIndicator from "./components/OfflineIndicator";
 
 function AppShell() {
     const { user, loading, logout: rawLogout } = useAuth();
@@ -80,6 +82,8 @@ function AppShell() {
                 )}
             </BrowserRouter>
 
+            <OfflineIndicator />
+
             <Modal
                 open={confirmingLogout}
                 onClose={() => setConfirmingLogout(false)}
@@ -113,10 +117,10 @@ function AppShell() {
     );
 }
 
-const KNOWN_PATHS = ["/", "/tasks", "/history", "/insights"];
+const KNOWN_PATHS = ["/", "/tasks", "/history", "/insights", "/saved"];
 
 // Mobile: one persistent swipe shell for the known sections; anything
-// else falls through to a 404.
+// else falls through to a 404. /saved renders as a dedicated view with back button.
 function MobileApp({ user, logout }) {
     const location = useLocation();
 
@@ -124,6 +128,23 @@ function MobileApp({ user, logout }) {
         return (
             <div className="app">
                 <NotFound />
+            </div>
+        );
+    }
+
+    if (location.pathname === "/saved") {
+        return (
+            <div className="app">
+                <header className="mobile-header">
+                    <Link to="/" className="mobile-header-link" aria-label="Back to Now">
+                        ← Now
+                    </Link>
+                    <span className="mobile-logo">SHIFT</span>
+                    <span className="mobile-header-spacer" />
+                </header>
+                <div className="mobile-page-wrap">
+                    <Saved />
+                </div>
             </div>
         );
     }
@@ -151,6 +172,7 @@ function DesktopApp({ user, logout }) {
                     <NavLink to="/tasks">TASKS</NavLink>
                     <NavLink to="/history">HISTORY</NavLink>
                     <NavLink to="/insights">INSIGHTS</NavLink>
+                    <NavLink to="/saved">SAVED</NavLink>
                 </nav>
 
                 <div className="nav-user">
@@ -167,6 +189,7 @@ function DesktopApp({ user, logout }) {
                     <Route path="/tasks" element={<Tasks />} />
                     <Route path="/history" element={<History />} />
                     <Route path="/insights" element={<Insights />} />
+                    <Route path="/saved" element={<Saved />} />
                     <Route path="*" element={<NotFound />} />
                 </Routes>
             </main>

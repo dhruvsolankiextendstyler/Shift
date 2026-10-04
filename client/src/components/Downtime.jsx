@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Modal from "./Modal";
 import DowntimeFeed from "./DowntimeFeed";
+import BookmarkButton from "./BookmarkButton";
 import {
     nextWord,
     nextArticle,
     fetchWordExamples,
     applyExamples
 } from "../downtime/content";
+import { refreshSavedIds } from "../services/saved";
 
 // One word card. Renders immediately with the guaranteed fallback sentences,
 // then layers in real usage examples from dictionaryapi.dev in the background
-// when it's reachable (same behaviour as the old Word Forge, no buttons). The
-// cleanup aborts an in-flight fetch if the card leaves before it lands.
+// when it's reachable. Cleanup aborts an in-flight fetch if the card leaves before it lands.
 function WordCard({ entry }) {
     const [meanings, setMeanings] = useState(entry.meanings);
 
@@ -27,41 +28,77 @@ function WordCard({ entry }) {
 
     return (
         <div className="dt-word">
+            <div className="dt-card-head">
+                <span className="eyebrow dt-card-eyebrow">✦ VOCABULARY</span>
+                <BookmarkButton
+                    type="word"
+                    itemId={entry.word}
+                    title={entry.word}
+                    content={{ word: entry.word, meanings }}
+                />
+            </div>
+
             <h1 className="vocab-word">{entry.word}</h1>
-            {meanings.map((m, i) => (
-                <div key={i} className="vocab-meaning">
-                    {m.pos && <span className="vocab-pos">{m.pos}</span>}
-                    <p className="vocab-def">{m.definition}</p>
-                    {m.example && (
-                        <div className="vocab-example-block">
-                            <span className="vocab-example-label">Example</span>
-                            <p className="vocab-example">"{m.example}"</p>
-                        </div>
-                    )}
-                </div>
-            ))}
+
+            <div className="vocab-meanings-list">
+                {meanings.map((m, i) => (
+                    <div key={i} className="vocab-meaning">
+                        {m.pos && <span className="vocab-pos">{m.pos}</span>}
+                        <p className="vocab-def">{m.definition}</p>
+                        {m.example && (
+                            <div className="vocab-example-block">
+                                <span className="vocab-example-label">Example</span>
+                                <p className="vocab-example">"{m.example}"</p>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
 
-// One article card — reuses the existing Deep Read (.read-*) typography.
+// One article card — structured editorial reading experience with clear boundaries,
+// reading time, takeaway, and bookmark controls.
 function ArticleCard({ article }) {
     return (
         <article className="dt-article read-body">
-            {article.category && (
-                <p className="eyebrow read-eyebrow">
-                    ✦ {article.category.toUpperCase()}
-                </p>
-            )}
+            <div className="dt-card-head">
+                <div className="dt-card-meta">
+                    {article.category && (
+                        <span className="eyebrow read-eyebrow">
+                            ✦ {article.category.toUpperCase()}
+                        </span>
+                    )}
+                    {article.readingTime && (
+                        <span className="read-time-badge">
+                            {article.readingTime}
+                        </span>
+                    )}
+                </div>
+
+                <BookmarkButton
+                    type="article"
+                    itemId={article.title || article.topic}
+                    title={article.title}
+                    content={article}
+                />
+            </div>
+
             {article.thumb && (
-                <img className="read-thumb" src={article.thumb} alt="" />
+                <img className="read-thumb" src={article.thumb} alt="" loading="lazy" />
             )}
+
             <h1 className="read-heading">{article.title}</h1>
-            {article.description && (
+
+            {article.hook ? (
+                <p className="read-hook">{article.hook}</p>
+            ) : article.description ? (
                 <p className="read-desc">{article.description}</p>
-            )}
+            ) : null}
+
             <div className="read-extract">
-                {article.blocks.map((b, i) =>
+                {article.blocks?.map((b, i) =>
                     b.type === "h" ? (
                         <h2
                             key={i}
@@ -78,6 +115,14 @@ function ArticleCard({ article }) {
                     )
                 )}
             </div>
+
+            {article.takeaway && (
+                <div className="read-takeaway">
+                    <span className="read-takeaway-label">Key Takeaway</span>
+                    <p className="read-takeaway-text">{article.takeaway}</p>
+                </div>
+            )}
+
             {article.url && (
                 <a
                     className="read-more"
@@ -85,35 +130,30 @@ function ArticleCard({ article }) {
                     target="_blank"
                     rel="noopener noreferrer"
                 >
-                    Read the full thing ↗
+                    Read source on Wikipedia ↗
                 </a>
             )}
         </article>
     );
 }
+
 const TABS = [
     { id: "words", label: "Words" },
     { id: "articles", label: "Articles" }
 ];
 
-// A tab switch fires only on a decisive horizontal swipe: the finger has to
-// travel at least SWIPE_MIN px AND move mostly sideways (dx beats dy by
-// SWIPE_RATIO). Anything shorter or more vertical is left to the native
-// vertical scroll of the feed underneath — that's what keeps the two gestures
-// from stepping on each other.
-const SWIPE_MIN = 55;
-const SWIPE_RATIO = 1.4;
+const SWIPE_MIN = 50;
+const SWIPE_RATIO = 1.45;
 
-// Full-screen downtime discovery. Rendered inside Modal (variant="sheet") so it
-// inherits the proven back-button parking (device Back → close → NOW, never
-// exit), Escape, scroll-lock and portal — no second navigation system. Two
-// tabs sit side by side in a horizontal track: tap a tab, arrow-key it, or
-// swipe sideways. Both feeds stay mounted, so switching keeps each one's scroll
-// position and buffer. Vertical swipes fall through to each feed's own snap
-// scroll.
 function Downtime({ open, onClose }) {
     const [tab, setTab] = useState("words");
     const tabIndex = TABS.findIndex((t) => t.id === tab);
+
+    useEffect(() => {
+        if (open) {
+            refreshSavedIds();
+        }
+    }, [open]);
 
     // Stable fetchers so the feed's mount effect / observer don't churn.
     const fetchWordItem = useCallback(() => nextWord(), []);
@@ -133,10 +173,6 @@ function Downtime({ open, onClose }) {
         go(e.key === "ArrowRight" ? 1 : -1);
     };
 
-    // touchstart records the finger; touchend decides. We never preventDefault,
-    // so the feed's native vertical scroll is untouched — a sideways flick just
-    // gets classified after the fact and, if it's clearly horizontal, flips the
-    // tab. Multi-touch (pinch/zoom) is ignored.
     const touchRef = useRef(null);
     const onTouchStart = (e) => {
         if (e.touches.length !== 1) {
@@ -148,6 +184,7 @@ function Downtime({ open, onClose }) {
             y: e.touches[0].clientY
         };
     };
+
     const onTouchEnd = (e) => {
         const start = touchRef.current;
         touchRef.current = null;
@@ -191,7 +228,7 @@ function Downtime({ open, onClose }) {
                         aria-label="Close downtime"
                         onClick={onClose}
                     >
-                        &lt;
+                        ✕
                     </button>
                 </div>
 
@@ -240,4 +277,3 @@ function Downtime({ open, onClose }) {
 }
 
 export default Downtime;
-

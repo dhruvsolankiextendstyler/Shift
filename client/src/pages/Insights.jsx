@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../services/api";
 import ErrorState from "../components/ErrorState";
-import CountUp from "../components/CountUp";
+import NumberReveal from "../components/NumberReveal";
+import { computeDailyReflection, computeWeeklyReflection } from "../services/reflection";
 
 /* ---------- tiny chart primitives (hand-rolled, theme-matched) ---------- */
 
@@ -125,8 +126,7 @@ function BarList({ items, unit = "", scaleMax }) {
                         </div>
                     </div>
                     <strong className="bar-value">
-                        {item.value}
-                        {unit}
+                        <NumberReveal value={item.value} suffix={unit} />
                     </strong>
                 </div>
             ))}
@@ -311,6 +311,7 @@ const MOOD_ORDER = ["low", "okay", "good", "great", "angry", "overwhelmed"];
 
 export const INSIGHTS_TABS = [
     { id: "overview", label: "Overview" },
+    { id: "reflection", label: "Reflection" },
     { id: "rhythm", label: "Rhythm" },
     { id: "streaks", label: "Streaks" },
     { id: "trends", label: "Trends" }
@@ -322,6 +323,7 @@ export function useInsightsData() {
     const [actions, setActions] = useState([]);
     const [tasks, setTasks] = useState([]);
     const [activity, setActivity] = useState({ readCount: 0, vocabCount: 0 });
+    const [activityHistory, setActivityHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
 
@@ -333,20 +335,23 @@ export function useInsightsData() {
         if (!silent) setLoading(true);
         setError(false);
         try {
-            const [actionsRes, tasksRes, activityRes] = await Promise.all([
+            const [actionsRes, tasksRes, activityRes, historyRes] = await Promise.all([
                 apiFetch("/actions"),
                 apiFetch("/tasks"),
-                apiFetch("/activity")
+                apiFetch("/activity"),
+                apiFetch("/activity/history")
             ]);
             if (!actionsRes.ok || !tasksRes.ok) {
                 throw new Error("Request failed");
             }
             setActions(await actionsRes.json());
             setTasks(await tasksRes.json());
-            // Downtime counts are a nice-to-have — don't fail insights if the
-            // endpoint hiccups.
+            // Downtime counts and dated history are nice-to-have
             if (activityRes.ok) {
                 setActivity(await activityRes.json());
+            }
+            if (historyRes.ok) {
+                setActivityHistory(await historyRes.json());
             }
         } catch (err) {
             console.error("Failed to load insights:", err);
@@ -496,6 +501,10 @@ export function useInsightsData() {
                 };
             });
 
+        // Genuine Daily and Weekly Reflections from real activity data
+        const dailyReflection = computeDailyReflection(actions, activityHistory);
+        const weeklyReflection = computeWeeklyReflection(actions, activityHistory);
+
         return {
             total,
             completed,
@@ -516,10 +525,12 @@ export function useInsightsData() {
             categoryStreaks,
             overallStreak,
             trendPoints,
+            dailyReflection,
+            weeklyReflection,
             readCount: activity.readCount || 0,
             vocabCount: activity.vocabCount || 0
         };
-    }, [actions, tasks, activity]);
+    }, [actions, tasks, activity, activityHistory]);
 
     const isEmpty =
         d.total === 0 &&
@@ -551,19 +562,19 @@ export function InsightsTabContent({ d, tab }) {
                 <div className="stats-grid">
                     <div className="stat-card">
                         <span>Total actions</span>
-                        <strong><CountUp value={d.total} /></strong>
+                        <strong><NumberReveal value={d.total} /></strong>
                     </div>
                     <div className="stat-card">
                         <span>Completion rate</span>
-                        <strong><CountUp value={d.completionRate} />%</strong>
+                        <strong><NumberReveal value={d.completionRate} suffix="%" /></strong>
                     </div>
                     <div className="stat-card">
                         <span>Permanent logged</span>
-                        <strong><CountUp value={d.permanentLogged} /></strong>
+                        <strong><NumberReveal value={d.permanentLogged} /></strong>
                     </div>
                     <div className="stat-card">
                         <span>Untouched tasks</span>
-                        <strong><CountUp value={d.untouched} /></strong>
+                        <strong><NumberReveal value={d.untouched} /></strong>
                     </div>
                 </div>
 
@@ -611,7 +622,7 @@ export function InsightsTabContent({ d, tab }) {
                 )}
 
                 <section className="insight-card wide">
-                    <p className="eyebrow">☕ DOWNTIME</p>
+                    <p className="eyebrow">✦ DOWNTIME</p>
                     <h2>Between the moves</h2>
                     <p className="chart-sub">
                         Reading and vocab sessions you finished — every
@@ -628,7 +639,7 @@ export function InsightsTabContent({ d, tab }) {
                     ) : (
                         <p className="chart-empty">
                             No downtime sessions yet — open the tools
-                            button and hit Done to log one.
+                            button and explore Words and Articles.
                         </p>
                     )}
                 </section>
@@ -654,6 +665,89 @@ export function InsightsTabContent({ d, tab }) {
                         <BarList items={d.permanentTasks} unit="×" />
                     </section>
                 )}
+            </>
+        );
+    }
+
+    if (tab === "reflection") {
+        const daily = d.dailyReflection;
+        const weekly = d.weeklyReflection;
+
+        return (
+            <>
+                {/* DAILY REFLECTION */}
+                <section className="insight-card wide reflection-card">
+                    <div className="reflection-card-head">
+                        <div>
+                            <p className="eyebrow">✦ TODAY'S REFLECTION</p>
+                            <h2>{daily.hasData ? daily.observation : "Today at a glance"}</h2>
+                            {daily.secondaryObservation && (
+                                <p className="reflection-sub">{daily.secondaryObservation}</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="stats-grid">
+                        <div className="stat-card">
+                            <span>Completed moves</span>
+                            <strong><NumberReveal value={daily.totalCompleted} /></strong>
+                        </div>
+                        <div className="stat-card">
+                            <span>Categories</span>
+                            <strong><NumberReveal value={daily.categoryCount} /></strong>
+                        </div>
+                        <div className="stat-card">
+                            <span>Focus time</span>
+                            <strong><NumberReveal value={daily.totalMinutes} suffix=" min" /></strong>
+                        </div>
+                        <div className="stat-card">
+                            <span>Downtime sessions</span>
+                            <strong><NumberReveal value={daily.readCount + daily.vocabCount} /></strong>
+                        </div>
+                    </div>
+
+                    {daily.categories.length > 0 && (
+                        <div className="reflection-section">
+                            <p className="chart-sub">Category breakdown for today</p>
+                            <BarList items={daily.categories.map(([label, value]) => ({ label, value }))} />
+                        </div>
+                    )}
+                </section>
+
+                {/* WEEKLY REFLECTION */}
+                <section className="insight-card wide reflection-card">
+                    <div className="reflection-card-head">
+                        <div>
+                            <p className="eyebrow">✦ WEEKLY SUMMARY</p>
+                            <h2>{weekly.trend}</h2>
+                            {weekly.comparison && (
+                                <p className="reflection-sub">{weekly.comparison}</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="stats-grid three">
+                        <div className="stat-card">
+                            <span>Completed this week</span>
+                            <strong><NumberReveal value={weekly.totalCompleted} /></strong>
+                        </div>
+                        <div className="stat-card">
+                            <span>Active days</span>
+                            <strong><NumberReveal value={weekly.activeDaysCount} suffix=" / 7" /></strong>
+                        </div>
+                        <div className="stat-card">
+                            <span>Total focus time</span>
+                            <strong><NumberReveal value={weekly.totalMinutes} suffix=" min" /></strong>
+                        </div>
+                    </div>
+
+                    {weekly.categories.length > 0 && (
+                        <div className="reflection-section">
+                            <p className="chart-sub">Where your week was spent</p>
+                            <BarList items={weekly.categories.map(([label, value]) => ({ label, value }))} />
+                        </div>
+                    )}
+                </section>
             </>
         );
     }
@@ -710,7 +804,7 @@ export function InsightsTabContent({ d, tab }) {
                     <div className="stat-card">
                         <span>Current streak</span>
                         <strong>
-                            <CountUp value={d.overallStreak.current} />
+                            <NumberReveal value={d.overallStreak.current} />
                             <span className="unit">
                                 {" "}
                                 day
@@ -721,7 +815,7 @@ export function InsightsTabContent({ d, tab }) {
                     <div className="stat-card">
                         <span>Longest streak</span>
                         <strong>
-                            <CountUp value={d.overallStreak.longest} />
+                            <NumberReveal value={d.overallStreak.longest} />
                             <span className="unit">
                                 {" "}
                                 day
@@ -732,7 +826,7 @@ export function InsightsTabContent({ d, tab }) {
                 </div>
 
                 <section className="insight-card wide">
-                    <p className="eyebrow">🔥 BY CATEGORY</p>
+                    <p className="eyebrow">✦ BY CATEGORY</p>
                     <h2>Keep the chain alive</h2>
                     <p className="chart-sub">
                         Consecutive days you completed a move in each
@@ -746,7 +840,7 @@ export function InsightsTabContent({ d, tab }) {
                                         {s.label}
                                     </span>
                                     <span className="streak-current">
-                                        🔥 {s.current} day
+                                        <NumberReveal value={s.current} /> day
                                         {s.current === 1 ? "" : "s"}
                                     </span>
                                     <span className="streak-best">

@@ -74,8 +74,8 @@ export function startActionSync() {
     let stopped = false;
 
     const tick = async () => {
-        // Skip while hidden — a backgrounded tab has nothing to update.
-        if (stopped || syncSuspended || document.hidden) return;
+        // Skip while hidden or offline — no background network spam.
+        if (stopped || syncSuspended || document.hidden || (typeof navigator !== "undefined" && !navigator.onLine)) return;
         const local = read();
 
         try {

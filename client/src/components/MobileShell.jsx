@@ -456,15 +456,26 @@ function MobileShell({ user, logout }) {
                                 </p>
                             </div>
                         </div>
-                        <button
-                            className="profile-logout"
-                            onClick={() => {
-                                setProfileOpen(false);
-                                logout();
-                            }}
-                        >
-                            Log out
-                        </button>
+                        <div className="profile-actions">
+                            <button
+                                className="profile-menu-item"
+                                onClick={() => {
+                                    setProfileOpen(false);
+                                    navigate("/saved");
+                                }}
+                            >
+                                Saved items
+                            </button>
+                            <button
+                                className="profile-logout"
+                                onClick={() => {
+                                    setProfileOpen(false);
+                                    logout();
+                                }}
+                            >
+                                Log out
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
