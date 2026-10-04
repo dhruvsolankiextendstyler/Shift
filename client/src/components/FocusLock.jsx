@@ -3,8 +3,7 @@ import { apiFetch } from "../services/api";
 import {
     clearActiveAction,
     suspendSync,
-    resumeSync,
-    dismissActiveAction
+    resumeSync
 } from "../services/activeAction";
 import { reflectCompletionOnTask } from "../services/resolve";
 import { computeStreak, dayKey } from "../pages/Insights";
@@ -18,7 +17,12 @@ import {
     calculateRemainingBreakSeconds,
     checkBreakEligibility,
     notifyUser,
-    BREAK_DURATION_SECONDS
+    BREAK_DURATION_SECONDS,
+    FOCUS_SESSION_SECONDS,
+    calculateRemainingFocusSession,
+    isNotThisEligible,
+    calculateRemainingNotThisSeconds,
+    formatTimeMMSS
 } from "../services/timerBreak";
 
 // A completed move earns a little payoff: a synthesized chime (no audio asset)
@@ -79,34 +83,29 @@ const prefersReducedMotion = () =>
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// Countdown ring for the task's active work time window.
-// Uses activeWorkSeconds (which pauses when paused or during breaks).
-function FocusTimer({ minutes, activeWorkSeconds, isPaused, onTogglePause }) {
-    const total = Math.max((minutes || 0) * 60, 1);
-    const elapsed = Math.max(activeWorkSeconds, 0);
-    const remaining = total - elapsed;
-    const over = remaining < 0;
-    const progress = Math.min(elapsed / total, 1);
+// Compact, visually clean 5-Minute Focus Session Timer.
+// The Pause button is NOT inside the clock/timer.
+function FocusSessionTimer({ remainingSeconds, isPaused }) {
+    const total = FOCUS_SESSION_SECONDS; // 300 seconds
+    const elapsed = total - remainingSeconds;
+    const progress = Math.min(Math.max(elapsed / total, 0), 1);
 
     const R = 78;
     const C = 2 * Math.PI * R;
 
-    const secs = Math.round(Math.abs(remaining));
-    const label = `${over ? "+" : ""}${Math.floor(secs / 60)}:${String(
-        secs % 60
-    ).padStart(2, "0")}`;
+    const label = formatTimeMMSS(remainingSeconds);
 
     return (
-        <div className={`focus-timer ${over ? "over" : ""} ${isPaused ? "timer-paused" : ""}`}>
+        <div className={`focus-timer session-timer ${isPaused ? "timer-paused" : ""}`}>
             <svg
                 viewBox="0 0 180 180"
                 className="focus-ring"
                 aria-hidden="true"
             >
                 <defs>
-                    <linearGradient id="focus-grad" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="var(--accent)" />
-                        <stop offset="100%" stopColor="var(--viz-blue)" />
+                    <linearGradient id="session-grad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="var(--accent, #f5f5f5)" />
+                        <stop offset="100%" stopColor="var(--viz-blue, #3987e5)" />
                     </linearGradient>
                 </defs>
                 <circle className="focus-ring-track" cx="90" cy="90" r={R} />
@@ -115,6 +114,7 @@ function FocusTimer({ minutes, activeWorkSeconds, isPaused, onTogglePause }) {
                     cx="90"
                     cy="90"
                     r={R}
+                    stroke="url(#session-grad)"
                     strokeDasharray={C}
                     strokeDashoffset={C * (1 - progress)}
                     transform="rotate(-90 90 90)"
@@ -124,23 +124,17 @@ function FocusTimer({ minutes, activeWorkSeconds, isPaused, onTogglePause }) {
                 <span
                     className="focus-time-value"
                     role="timer"
-                    aria-label={`${label} ${over ? "overtime" : "remaining"}`}
+                    aria-label={`${label} initial focus session remaining`}
                 >
                     {label}
                 </span>
                 <span className="focus-time-sub">
-                    {isPaused ? "paused" : over ? "overtime" : "left"}
+                    {isPaused
+                        ? "paused"
+                        : remainingSeconds === 0
+                        ? "session done"
+                        : "focus session"}
                 </span>
-                {onTogglePause && (
-                    <button
-                        type="button"
-                        className="timer-pause-btn"
-                        onClick={onTogglePause}
-                        title={isPaused ? "Resume work timer" : "Pause timer"}
-                    >
-                        {isPaused ? "▶ Resume" : "⏸ Pause"}
-                    </button>
-                )}
             </div>
         </div>
     );
@@ -154,9 +148,7 @@ function BreakTimer({ remainingSeconds }) {
     const R = 78;
     const C = 2 * Math.PI * R;
 
-    const mins = Math.floor(remainingSeconds / 60);
-    const secs = Math.floor(remainingSeconds % 60);
-    const label = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    const label = formatTimeMMSS(remainingSeconds);
 
     return (
         <div className="focus-timer break-timer">
@@ -167,7 +159,7 @@ function BreakTimer({ remainingSeconds }) {
             >
                 <defs>
                     <linearGradient id="break-grad" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="var(--viz-blue)" />
+                        <stop offset="0%" stopColor="var(--viz-blue, #3987e5)" />
                         <stop offset="100%" stopColor="var(--good-text, #3fc23f)" />
                     </linearGradient>
                 </defs>
@@ -239,7 +231,7 @@ function Celebration() {
     );
 }
 
-// The frozen screen with 5-Minute Break System integration.
+// Dedicated locked active-task experience
 function FocusLock({ actionId, task, startedAt }) {
     const [showFeedback, setShowFeedback] = useState(false);
     const [note, setNote] = useState("");
@@ -247,7 +239,7 @@ function FocusLock({ actionId, task, startedAt }) {
     const [notificationBanner, setNotificationBanner] = useState("");
     const [streak, setStreak] = useState(null);
 
-    // Break system state management
+    // Active timer & break state management
     const [timerState, setTimerState] = useState(() =>
         loadTimerState(actionId, startedAt)
     );
@@ -256,14 +248,29 @@ function FocusLock({ actionId, task, startedAt }) {
     const taskMinutes = task?.estimatedTime || 0;
     const breaksAllowed = getBreaksAllowed(taskMinutes);
 
-    // Save timer state to localStorage whenever it changes
+    // Trap mobile/browser system Back button so user stays in active task
+    useEffect(() => {
+        const stateObj = { focusLocked: true };
+        window.history.pushState(stateObj, "");
+
+        const onPopState = () => {
+            window.history.pushState(stateObj, "");
+        };
+
+        window.addEventListener("popstate", onPopState);
+        return () => {
+            window.removeEventListener("popstate", onPopState);
+        };
+    }, []);
+
+    // Persist timer state to localStorage whenever it changes
     useEffect(() => {
         if (timerState && actionId) {
             saveTimerState(actionId, timerState);
         }
     }, [timerState, actionId]);
 
-    // Fast animation/interval loop for smooth second ticks and auto-break detection
+    // Interval loop for accurate second ticks and auto-break detection
     useEffect(() => {
         const id = setInterval(() => {
             const currentNow = Date.now();
@@ -276,7 +283,6 @@ function FocusLock({ actionId, task, startedAt }) {
                 if (prev.status === "BREAK" && prev.breakStartTime) {
                     const remainingBreak = calculateRemainingBreakSeconds(prev, currentNow);
                     if (remainingBreak <= 0) {
-                        // 5-minute break ended! Return automatically to work
                         playSoftChime();
                         notifyUser("Shift Focus", "Break over. Back to it.");
                         setNotificationBanner("Break over. Back to it.");
@@ -330,13 +336,20 @@ function FocusLock({ actionId, task, startedAt }) {
         return () => clearInterval(id);
     }, [breaksAllowed]);
 
-    // Active work elapsed seconds (pauses when status !== "WORKING")
+    // Calculations based on actual elapsed active work time
     const activeWorkSeconds = calculateActiveWorkSeconds(timerState, nowMs);
     const isPaused = timerState?.status === "PAUSED";
     const isInBreak = timerState?.status === "BREAK";
     const remainingBreakSeconds = calculateRemainingBreakSeconds(timerState, nowMs);
 
-    // Check manual break availability (during 25:00 - 25:59 window)
+    // 5-Minute Focus Session Timer
+    const remainingFocusSeconds = calculateRemainingFocusSession(activeWorkSeconds);
+
+    // 15-Second Not This Eligibility Window
+    const notThisEligible = isNotThisEligible(activeWorkSeconds);
+    const remainingNotThisSeconds = calculateRemainingNotThisSeconds(activeWorkSeconds);
+
+    // Check manual 25-minute break availability (during 25:00 - 25:59 window)
     const eligibility = checkBreakEligibility(
         activeWorkSeconds,
         breaksAllowed,
@@ -487,6 +500,7 @@ function FocusLock({ actionId, task, startedAt }) {
     };
 
     const skipAction = async () => {
+        if (!notThisEligible) return;
         suspendSync();
         try {
             const res = await putAction({
@@ -518,7 +532,7 @@ function FocusLock({ actionId, task, startedAt }) {
     };
 
     return (
-        <div className="app">
+        <div className="app locked-focus-mode">
             <div className="now-page">
                 {/* Floating In-App Break Notification Banner */}
                 {notificationBanner && (
@@ -557,18 +571,56 @@ function FocusLock({ actionId, task, startedAt }) {
                             </div>
                         </section>
                     ) : (
-                        /* WORK STATE */
-                        <section className="recommendation-card focus-active">
+                        /* ACTIVE WORK STATE: Locked Mode Hierarchy */
+                        <section className="recommendation-card focus-active locked-task-card">
                             <p className="eyebrow">
                                 {isPaused ? "⏸ PAUSED" : "⏱ IN MOTION"}
                             </p>
 
-                            <FocusTimer
-                                minutes={task.estimatedTime}
-                                activeWorkSeconds={activeWorkSeconds}
+                            {/* 1. TASK NAME */}
+                            <h1 className="focus-task-title">{task.title}</h1>
+
+                            {/* 2. 5-MINUTE FOCUS SESSION TIMER (No Pause button inside) */}
+                            <FocusSessionTimer
+                                remainingSeconds={remainingFocusSeconds}
                                 isPaused={isPaused}
-                                onTogglePause={handleTogglePause}
                             />
+
+                            {/* 3. PAUSE / RESUME BUTTON DIRECTLY BELOW TIMER */}
+                            <button
+                                type="button"
+                                className="focus-pause-control"
+                                onClick={handleTogglePause}
+                            >
+                                {isPaused ? "RESUME" : "PAUSE"}
+                            </button>
+
+                            {/* 4. NOT THIS BUTTON (Enabled first 15s, disabled after) */}
+                            <button
+                                type="button"
+                                className={`not-this-control ${!notThisEligible ? "disabled" : ""}`}
+                                onClick={notThisEligible ? skipAction : undefined}
+                                disabled={!notThisEligible}
+                                title={
+                                    notThisEligible
+                                        ? `Available for ${remainingNotThisSeconds}s`
+                                        : "Not This is disabled after 15 active seconds"
+                                }
+                            >
+                                {notThisEligible
+                                    ? `NOT THIS (${remainingNotThisSeconds}s)`
+                                    : "NOT THIS"}
+                            </button>
+
+                            {/* 5. NAILED IT ✓ (Task Completion) */}
+                            <div className="action-buttons focus-completion-wrap">
+                                <button
+                                    className="complete-button"
+                                    onClick={completeAction}
+                                >
+                                    NAILED IT ✓
+                                </button>
+                            </div>
 
                             {/* Break Opportunity Prompt (during 25:00 - 25:59 window) */}
                             {breakOfferAvailable && (
@@ -596,24 +648,6 @@ function FocusLock({ actionId, task, startedAt }) {
                                 </div>
                             )}
 
-                            <h1>{task.title}</h1>
-
-                            <div className="action-buttons">
-                                <button
-                                    className="complete-button"
-                                    onClick={completeAction}
-                                >
-                                    NAILED IT ✓
-                                </button>
-
-                                <button
-                                    className="skip-button"
-                                    onClick={skipAction}
-                                >
-                                    NOT THIS
-                                </button>
-                            </div>
-
                             <textarea
                                 className="note-input"
                                 placeholder="How'd it feel? Jot it down — just for you (optional)"
@@ -621,16 +655,6 @@ function FocusLock({ actionId, task, startedAt }) {
                                 maxLength={1000}
                                 onChange={(e) => setNote(e.target.value)}
                             />
-
-                            <button
-                                className="text-button focus-release"
-                                onClick={() => {
-                                    clearTimerState(actionId);
-                                    dismissActiveAction(actionId);
-                                }}
-                            >
-                                Not now — I'll finish later
-                            </button>
 
                             {message && <p className="message">{message}</p>}
                         </section>

@@ -12,6 +12,27 @@
 export const BREAK_DURATION_SECONDS = 300; // 5 minutes
 export const WORK_BLOCK_SECONDS = 1500; // 25 minutes
 export const AUTO_BREAK_GRACE_SECONDS = 60; // 1 minute (triggers at 26:00)
+export const FOCUS_SESSION_SECONDS = 300; // 5-minute initial focus commitment timer
+export const NOT_THIS_WINDOW_SECONDS = 15; // 15-second Not This eligibility window
+
+export function calculateRemainingFocusSession(activeSeconds) {
+    return Math.max(0, FOCUS_SESSION_SECONDS - Math.max(0, activeSeconds));
+}
+
+export function isNotThisEligible(activeSeconds) {
+    return (activeSeconds || 0) < NOT_THIS_WINDOW_SECONDS;
+}
+
+export function calculateRemainingNotThisSeconds(activeSeconds) {
+    return Math.max(0, Math.ceil(NOT_THIS_WINDOW_SECONDS - Math.max(0, activeSeconds)));
+}
+
+export function formatTimeMMSS(totalSeconds) {
+    const s = Math.round(Math.max(0, totalSeconds));
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    return `${mins}:${String(secs).padStart(2, "0")}`;
+}
 
 export function getBreaksAllowed(durationMinutes) {
     if (!durationMinutes || typeof durationMinutes !== "number") return 0;

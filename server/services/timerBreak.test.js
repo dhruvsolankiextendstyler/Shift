@@ -5,6 +5,27 @@ const assert = require("node:assert/strict");
 const BREAK_DURATION_SECONDS = 300;
 const WORK_BLOCK_SECONDS = 1500;
 const AUTO_BREAK_GRACE_SECONDS = 60;
+const FOCUS_SESSION_SECONDS = 300;
+const NOT_THIS_WINDOW_SECONDS = 15;
+
+function calculateRemainingFocusSession(activeSeconds) {
+    return Math.max(0, FOCUS_SESSION_SECONDS - Math.max(0, activeSeconds));
+}
+
+function isNotThisEligible(activeSeconds) {
+    return (activeSeconds || 0) < NOT_THIS_WINDOW_SECONDS;
+}
+
+function calculateRemainingNotThisSeconds(activeSeconds) {
+    return Math.max(0, Math.ceil(NOT_THIS_WINDOW_SECONDS - Math.max(0, activeSeconds)));
+}
+
+function formatTimeMMSS(totalSeconds) {
+    const s = Math.round(Math.max(0, totalSeconds));
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    return `${mins}:${String(secs).padStart(2, "0")}`;
+}
 
 function getBreaksAllowed(durationMinutes) {
     if (!durationMinutes || typeof durationMinutes !== "number") return 0;
@@ -159,5 +180,48 @@ describe("Focused Task Timer — 5-Minute Break System", () => {
 
         // After 300s: 0s remaining (capped at 0)
         assert.equal(calculateRemainingBreakSeconds(breakState, breakStart + 350000), 0);
+    });
+
+    it("5-minute focus session timer counts down from 300s to 0s", () => {
+        assert.equal(calculateRemainingFocusSession(0), 300);
+        assert.equal(formatTimeMMSS(calculateRemainingFocusSession(0)), "5:00");
+        assert.equal(calculateRemainingFocusSession(30), 270);
+        assert.equal(formatTimeMMSS(calculateRemainingFocusSession(30)), "4:30");
+        assert.equal(calculateRemainingFocusSession(300), 0);
+        assert.equal(formatTimeMMSS(calculateRemainingFocusSession(300)), "0:00");
+        // Beyond 5 minutes, stays at 0 (does not go negative)
+        assert.equal(calculateRemainingFocusSession(400), 0);
+    });
+
+    it("Not This 15-second eligibility window works accurately with pausing", () => {
+        // Active work = 0s -> eligible
+        assert.equal(isNotThisEligible(0), true);
+        assert.equal(calculateRemainingNotThisSeconds(0), 15);
+
+        // Active work = 8s -> eligible, 7s remaining
+        assert.equal(isNotThisEligible(8), true);
+        assert.equal(calculateRemainingNotThisSeconds(8), 7);
+
+        // Paused at 8s: active work stays 8s, remains eligible
+        const pausedState = {
+            accumulatedActiveSeconds: 8,
+            lastActiveStart: null,
+            status: "PAUSED"
+        };
+        const activeWhilePaused = calculateActiveWorkSeconds(pausedState, 99999999);
+        assert.equal(activeWhilePaused, 8);
+        assert.equal(isNotThisEligible(activeWhilePaused), true);
+        assert.equal(calculateRemainingNotThisSeconds(activeWhilePaused), 7);
+
+        // Active work = 14.9s -> eligible
+        assert.equal(isNotThisEligible(14.9), true);
+
+        // Active work = 15s -> disabled!
+        assert.equal(isNotThisEligible(15), false);
+        assert.equal(calculateRemainingNotThisSeconds(15), 0);
+
+        // Active work > 15s -> disabled
+        assert.equal(isNotThisEligible(30), false);
+        assert.equal(calculateRemainingNotThisSeconds(30), 0);
     });
 });

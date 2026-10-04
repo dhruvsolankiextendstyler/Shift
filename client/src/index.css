@@ -5049,4 +5049,105 @@ select:focus-visible {
     color: var(--text);
 }
 
+/* ============================================================
+   Locked Focus Mode & 5-Minute Session Timer Hierarchy
+   ============================================================ */
+.locked-focus-mode {
+    min-height: 100vh;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: var(--space-4) var(--space-2);
+}
+
+.locked-task-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.focus-task-title {
+    font-size: clamp(24px, 3.8vw, 34px);
+    font-weight: 700;
+    line-height: 1.15;
+    margin: 0 0 var(--space-4);
+    color: var(--text);
+    text-align: center;
+}
+
+.session-timer {
+    margin: 0 auto var(--space-3);
+}
+
+.focus-pause-control {
+    margin: 0 auto var(--space-2);
+    padding: 11px 28px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    transition: all var(--dur-fast) var(--ease-out);
+    display: block;
+    width: min(240px, 85%);
+    cursor: pointer;
+}
+
+.focus-pause-control:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: var(--border-hover);
+    transform: translateY(-1px);
+}
+
+.not-this-control {
+    margin: 0 auto var(--space-4);
+    padding: 9px 24px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    transition: all var(--dur-fast) var(--ease-out);
+    display: block;
+    width: min(240px, 85%);
+    cursor: pointer;
+}
+
+.not-this-control:not(.disabled):hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.not-this-control.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    border-color: transparent;
+    color: var(--text-dim);
+    pointer-events: none;
+}
+
+.focus-complete-wrap {
+    width: 100%;
+    margin-bottom: var(--space-3);
+}
+
+.focus-complete-wrap .complete-button {
+    width: min(320px, 90%);
+    margin: 0 auto;
+}
+
+
 
