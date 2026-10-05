@@ -76,7 +76,7 @@ export function AuthProvider({ children }) {
     const loginWithGoogle = (credential) =>
         authenticate("/auth/google", { credential });
 
-    const completeOnboarding = async () => {
+    const completeOnboarding = async (autoSetUser = true) => {
         const response = await apiFetch("/auth/onboarding", {
             method: "PATCH"
         });
@@ -84,10 +84,12 @@ export function AuthProvider({ children }) {
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.error || "Failed to complete onboarding");
+            throw new Error(data.error || "Couldn't finish setup. Try again.");
         }
 
-        setUser(data.user);
+        if (autoSetUser) {
+            setUser(data.user);
+        }
         return data.user;
     };
 
@@ -105,7 +107,8 @@ export function AuthProvider({ children }) {
                 signup,
                 loginWithGoogle,
                 logout,
-                completeOnboarding
+                completeOnboarding,
+                setUser
             }}
         >
             {children}

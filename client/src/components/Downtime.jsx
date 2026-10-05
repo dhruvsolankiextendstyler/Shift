@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Modal from "./Modal";
 import DowntimeFeed from "./DowntimeFeed";
 import BookmarkButton from "./BookmarkButton";
@@ -8,7 +8,7 @@ import {
     fetchWordExamples,
     applyExamples
 } from "../downtime/content";
-import { refreshSavedIds } from "../services/saved";
+import { fetchSavedItems, refreshSavedIds, subscribeSaved } from "../services/saved";
 
 // One word card. Renders immediately with the guaranteed fallback sentences,
 // then layers in real usage examples from dictionaryapi.dev in the background
@@ -137,9 +137,194 @@ function ArticleCard({ article }) {
     );
 }
 
+function DowntimeSaved() {
+    const [subTab, setSubTab] = useState("words"); // "words" | "articles"
+    const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [activeArticle, setActiveArticle] = useState(null);
+
+    const loadItems = useCallback(async () => {
+        try {
+            const data = await fetchSavedItems();
+            setItems(Array.isArray(data) ? data : []);
+        } catch {
+            setItems([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadItems();
+        return subscribeSaved(() => {
+            loadItems();
+        });
+    }, [loadItems]);
+
+    const words = useMemo(
+        () => items.filter((it) => it.type === "word"),
+        [items]
+    );
+
+    const articles = useMemo(
+        () => items.filter((it) => it.type === "article"),
+        [items]
+    );
+
+    useEffect(() => {
+        if (
+            activeArticle &&
+            !articles.some(
+                (a) =>
+                    a.itemId === activeArticle.itemId ||
+                    a._id === activeArticle._id
+            )
+        ) {
+            setActiveArticle(null);
+        }
+    }, [articles, activeArticle]);
+
+    if (activeArticle) {
+        const articleData = activeArticle.content || activeArticle;
+        return (
+            <div className="dt-saved-detail-view">
+                <div className="dt-saved-detail-bar">
+                    <button
+                        type="button"
+                        className="dt-saved-back-btn"
+                        onClick={() => setActiveArticle(null)}
+                    >
+                        ← Back to Saved
+                    </button>
+                </div>
+                <div className="dt-saved-detail-scroll">
+                    <ArticleCard article={articleData} />
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="dt-saved-pane">
+            <div className="dt-saved-subtabs" role="tablist" aria-label="Saved category filter">
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={subTab === "words"}
+                    className={`dt-saved-subtab ${subTab === "words" ? "active" : ""}`}
+                    onClick={() => setSubTab("words")}
+                >
+                    Words ({words.length})
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={subTab === "articles"}
+                    className={`dt-saved-subtab ${subTab === "articles" ? "active" : ""}`}
+                    onClick={() => setSubTab("articles")}
+                >
+                    Articles ({articles.length})
+                </button>
+            </div>
+
+            <div className="dt-saved-feed">
+                {loading ? (
+                    <div className="dt-saved-empty">
+                        <p className="dt-saved-empty-title">Loading archive…</p>
+                    </div>
+                ) : subTab === "words" ? (
+                    words.length === 0 ? (
+                        <div className="dt-saved-empty">
+                            <p className="dt-saved-empty-title">No saved words yet.</p>
+                            <p className="dt-saved-empty-desc">
+                                Bookmark words in Word Forge to review them here.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="dt-saved-list">
+                            {words.map((item) => {
+                                const wordEntry = {
+                                    word: item.content?.word || item.title,
+                                    meanings: item.content?.meanings || []
+                                };
+                                return (
+                                    <div
+                                        key={item._id || item.itemId}
+                                        className="dt-saved-card"
+                                    >
+                                        <WordCard entry={wordEntry} />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )
+                ) : articles.length === 0 ? (
+                    <div className="dt-saved-empty">
+                        <p className="dt-saved-empty-title">No saved articles yet.</p>
+                        <p className="dt-saved-empty-desc">
+                            Bookmark briefings in Deep Read to revisit them here.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="dt-saved-list">
+                        {articles.map((item) => {
+                            const art = item.content || item;
+                            return (
+                                <div
+                                    key={item._id || item.itemId}
+                                    className="dt-saved-article-preview"
+                                    onClick={() => setActiveArticle(item)}
+                                >
+                                    <div className="dt-card-head">
+                                        <div className="dt-card-meta">
+                                            {art.category && (
+                                                <span className="eyebrow read-eyebrow">
+                                                    ✦ {art.category.toUpperCase()}
+                                                </span>
+                                            )}
+                                            {art.readingTime && (
+                                                <span className="read-time-badge">
+                                                    {art.readingTime}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <BookmarkButton
+                                            type="article"
+                                            itemId={item.itemId}
+                                            title={item.title}
+                                            content={item.content}
+                                        />
+                                    </div>
+
+                                    <h3 className="dt-saved-item-title">{art.title}</h3>
+
+                                    {art.hook ? (
+                                        <p className="dt-saved-item-desc">{art.hook}</p>
+                                    ) : art.description ? (
+                                        <p className="dt-saved-item-desc">
+                                            {art.description}
+                                        </p>
+                                    ) : null}
+
+                                    <div className="dt-saved-item-footer">
+                                        <span className="dt-saved-open-hint">
+                                            Read full briefing →
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 const TABS = [
     { id: "words", label: "Words" },
-    { id: "articles", label: "Articles" }
+    { id: "articles", label: "Articles" },
+    { id: "saved", label: "Saved" }
 ];
 
 const SWIPE_MIN = 50;
@@ -193,18 +378,18 @@ function Downtime({ open, onClose }) {
         const dy = e.changedTouches[0].clientY - start.y;
         if (Math.abs(dx) < SWIPE_MIN) return;
         if (Math.abs(dx) < Math.abs(dy) * SWIPE_RATIO) return;
-        go(dx < 0 ? 1 : -1); // swipe left → next (Words → Articles)
+        go(dx < 0 ? 1 : -1); // swipe left → next
     };
 
     return (
         <Modal open={open} onClose={onClose} variant="sheet" labelledBy="dt-title">
-            <div className="dt-shell" style={{ "--dt-tab": tabIndex }}>
+            <div className="dt-shell" style={{ "--dt-tab": tabIndex, "--dt-tabs-count": TABS.length }}>
                 <div className="dt-head">
                     <div
                         className="dt-tabs"
                         role="tablist"
                         aria-label="Downtime content"
-                        style={{ "--dt-tab": tabIndex }}
+                        style={{ "--dt-tab": tabIndex, "--dt-tabs-count": TABS.length }}
                         onKeyDown={onTabKey}
                     >
                         {TABS.map((t) => (
@@ -269,6 +454,14 @@ function Downtime({ open, onClose }) {
                             loadingLabel="Pulling something worth your minutes…"
                             renderItem={(a) => <ArticleCard article={a} />}
                         />
+                    </div>
+                    <div
+                        className="dt-pane"
+                        role="tabpanel"
+                        aria-hidden={tab !== "saved"}
+                        inert={tab !== "saved"}
+                    >
+                        <DowntimeSaved />
                     </div>
                 </div>
             </div>

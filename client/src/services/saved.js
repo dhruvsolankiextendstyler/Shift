@@ -8,6 +8,11 @@ const SAVED_ITEMS_KEY = "shift_saved_items";
 // Reactive listeners for any bookmark changes
 const listeners = new Set();
 
+export function subscribeSaved(listener) {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+}
+
 function emit() {
     listeners.forEach((fn) => fn());
 }

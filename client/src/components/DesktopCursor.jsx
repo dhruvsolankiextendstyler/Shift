@@ -52,9 +52,9 @@ export default function DesktopCursor() {
             y: -100
         }));
 
-        const lerpFactors = [0.42, 0.32, 0.24, 0.17, 0.11];
+        const lerpFactors = [0.38, 0.28, 0.20, 0.14, 0.09];
         const scales = [0.85, 0.7, 0.55, 0.4, 0.25];
-        const opacities = [0.45, 0.35, 0.25, 0.16, 0.08];
+        const opacities = [0.5, 0.38, 0.28, 0.18, 0.09];
 
         const onMouseMove = (e) => {
             mouseX = e.clientX;
@@ -201,8 +201,8 @@ export default function DesktopCursor() {
                     // Update tail points with smooth lerping
                     if (!reduceMotion.matches) {
                         const idleMs = now - lastMoveTime;
-                        // Tail fades when mouse stops moving for more than 160ms
-                        const idleFade = Math.max(0, 1 - Math.max(0, idleMs - 120) / 280);
+                        // Tail stays visible for 350ms idle, then fades smoothly over 450ms (~800ms total)
+                        const idleFade = Math.max(0, 1 - Math.max(0, idleMs - 350) / 450);
 
                         let prevX = mouseX;
                         let prevY = mouseY;

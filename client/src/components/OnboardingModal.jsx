@@ -229,18 +229,20 @@ export default function OnboardingModal({ onComplete, completing = false }) {
     }, [stepIndex]);
 
     const handleNext = useCallback(() => {
+        if (completing) return;
         if (isLast) {
             onComplete();
         } else {
             setStepIndex((s) => s + 1);
         }
-    }, [isLast, onComplete]);
+    }, [isLast, onComplete, completing]);
 
     const handleBack = useCallback(() => {
+        if (completing) return;
         if (stepIndex > 0) {
             setStepIndex((s) => s - 1);
         }
-    }, [stepIndex]);
+    }, [stepIndex, completing]);
 
     return createPortal(
         <div
@@ -267,7 +269,8 @@ export default function OnboardingModal({ onComplete, completing = false }) {
                                 aria-selected={stepIndex === idx}
                                 aria-label={`Screen ${idx + 1}: ${s.title}`}
                                 className={`dot ${stepIndex === idx ? "active" : ""}`}
-                                onClick={() => setStepIndex(idx)}
+                                onClick={() => !completing && setStepIndex(idx)}
+                                disabled={completing}
                             />
                         ))}
                     </div>
@@ -311,7 +314,10 @@ export default function OnboardingModal({ onComplete, completing = false }) {
                         disabled={completing}
                     >
                         {completing ? (
-                            <span className="btn-spinner" />
+                            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                                <span className="btn-spinner" aria-hidden="true" />
+                                <span>Setting things up…</span>
+                            </span>
                         ) : isLast ? (
                             "Let's Get Started →"
                         ) : (

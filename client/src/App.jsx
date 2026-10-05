@@ -33,7 +33,7 @@ import Footer from "./components/Footer";
 import OfflineIndicator from "./components/OfflineIndicator";
 
 function AppShell() {
-    const { user, loading, logout: rawLogout, completeOnboarding } = useAuth();
+    const { user, loading, logout: rawLogout, completeOnboarding, setUser } = useAuth();
     const { toast } = useToast();
     const navigate = useNavigate();
     const location = useLocation();
@@ -96,39 +96,44 @@ function AppShell() {
     // Keeps the rest of the application unmounted until explicit completion.
     if (!user.onboardingCompleted) {
         const handleOnboardingComplete = async () => {
-            try {
-                setCompletingOnboarding(true);
+            if (completingOnboarding) return;
+            setCompletingOnboarding(true);
 
+            try {
                 // 1. Complete onboarding on backend (updates persistent User model)
-                await completeOnboarding();
+                // Concurrently check task pool to determine first-time routing
+                const [userRes, tasksRes] = await Promise.all([
+                    completeOnboarding(false),
+                    apiFetch("/tasks").catch(() => null)
+                ]);
 
                 // 2. Check if user already has tasks in the pool
                 let hasTasks = false;
-                try {
-                    const res = await apiFetch("/tasks");
-                    if (res.ok) {
-                        const tasks = await res.json();
-                        const activeTasks = Array.isArray(tasks)
-                            ? tasks.filter((t) => t.status !== "deleted")
-                            : [];
-                        hasTasks = activeTasks.length > 0;
-                    }
-                } catch (taskErr) {
-                    console.error("Failed to check tasks after onboarding:", taskErr);
+                if (tasksRes && tasksRes.ok) {
+                    const tasks = await tasksRes.json();
+                    const activeTasks = Array.isArray(tasks)
+                        ? tasks.filter((t) => t.status !== "deleted")
+                        : [];
+                    hasTasks = activeTasks.length > 0;
                 }
 
                 // 3. First-time destination: if no tasks, land on Tasks with welcoming toast;
                 // otherwise continue to normal destination (Now).
+                // Navigate BEFORE updating user state so the destination route is already
+                // active when OnboardingModal unmounts and DesktopApp/MobileShell mounts.
                 if (!hasTasks) {
                     navigate("/tasks", { replace: true });
                     toast("Add a few tasks and Shift can get to work.", "info");
                 } else {
                     navigate("/", { replace: true });
                 }
+
+                // 4. Update persistent frontend user state to unmount onboarding modal
+                setUser(userRes);
             } catch (err) {
                 console.error("Error completing onboarding:", err);
                 toast(
-                    err.message || "Failed to complete onboarding. Please try again.",
+                    err.message || "Couldn't finish setup. Try again.",
                     "error"
                 );
             } finally {
