@@ -5,16 +5,18 @@ import {
     Route,
     Link,
     NavLink,
-    useLocation
+    useLocation,
+    useNavigate
 } from "react-router-dom";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { ToastProvider } from "./context/ToastContext";
+import { ToastProvider, useToast } from "./context/ToastContext";
 import { useIsMobile } from "./hooks/useIsMobile";
 import {
     useActiveAction,
     startActionSync
 } from "./services/activeAction";
+import { apiFetch } from "./services/api";
 import FocusLock from "./components/FocusLock";
 import Auth from "./pages/Auth";
 import Now from "./pages/Now";
@@ -24,18 +26,47 @@ import Insights from "./pages/Insights";
 import Saved from "./pages/Saved";
 import MobileShell from "./components/MobileShell";
 import Modal from "./components/Modal";
+import OnboardingModal from "./components/OnboardingModal";
 import TapDroplets from "./components/TapDroplets";
 import DesktopCursor from "./components/DesktopCursor";
 import Footer from "./components/Footer";
 import OfflineIndicator from "./components/OfflineIndicator";
 
 function AppShell() {
-    const { user, loading, logout: rawLogout } = useAuth();
+    const { user, loading, logout: rawLogout, completeOnboarding } = useAuth();
+    const { toast } = useToast();
+    const navigate = useNavigate();
+    const location = useLocation();
     const isMobile = useIsMobile();
     const activeAction = useActiveAction();
 
     const [confirmingLogout, setConfirmingLogout] = useState(false);
+    const [completingOnboarding, setCompletingOnboarding] = useState(false);
     const logout = () => setConfirmingLogout(true);
+
+    // If the user has zero tasks and is on the root page, directly land on TASKS
+    useEffect(() => {
+        if (!user || !user.onboardingCompleted) return;
+        if (location.pathname !== "/") return;
+
+        let cancelled = false;
+        apiFetch("/tasks")
+            .then((res) => (res.ok ? res.json() : []))
+            .then((tasks) => {
+                if (cancelled) return;
+                const activeTasks = Array.isArray(tasks)
+                    ? tasks.filter((t) => t.status !== "deleted")
+                    : [];
+                if (activeTasks.length === 0) {
+                    navigate("/tasks", { replace: true });
+                }
+            })
+            .catch(() => {});
+
+        return () => {
+            cancelled = true;
+        };
+    }, [user?._id, user?.onboardingCompleted, location.pathname, navigate]);
 
     // Mirror a started task across the user's devices: poll while logged in so
     // a focus lock on one device shows on the others and releases everywhere
@@ -61,6 +92,60 @@ function AppShell() {
         );
     }
 
+    // Mandatory first-time user onboarding: cannot be skipped or dismissed.
+    // Keeps the rest of the application unmounted until explicit completion.
+    if (!user.onboardingCompleted) {
+        const handleOnboardingComplete = async () => {
+            try {
+                setCompletingOnboarding(true);
+
+                // 1. Complete onboarding on backend (updates persistent User model)
+                await completeOnboarding();
+
+                // 2. Check if user already has tasks in the pool
+                let hasTasks = false;
+                try {
+                    const res = await apiFetch("/tasks");
+                    if (res.ok) {
+                        const tasks = await res.json();
+                        const activeTasks = Array.isArray(tasks)
+                            ? tasks.filter((t) => t.status !== "deleted")
+                            : [];
+                        hasTasks = activeTasks.length > 0;
+                    }
+                } catch (taskErr) {
+                    console.error("Failed to check tasks after onboarding:", taskErr);
+                }
+
+                // 3. First-time destination: if no tasks, land on Tasks with welcoming toast;
+                // otherwise continue to normal destination (Now).
+                if (!hasTasks) {
+                    navigate("/tasks", { replace: true });
+                    toast("Add a few tasks and Shift can get to work.", "info");
+                } else {
+                    navigate("/", { replace: true });
+                }
+            } catch (err) {
+                console.error("Error completing onboarding:", err);
+                toast(
+                    err.message || "Failed to complete onboarding. Please try again.",
+                    "error"
+                );
+            } finally {
+                setCompletingOnboarding(false);
+            }
+        };
+
+        return (
+            <div className="app">
+                <OnboardingModal
+                    onComplete={handleOnboardingComplete}
+                    completing={completingOnboarding}
+                />
+            </div>
+        );
+    }
+
     // A started task freezes the whole app: no nav, no other page mounts,
     // only complete/skip — and it holds across reloads.
     if (activeAction) {
@@ -75,13 +160,11 @@ function AppShell() {
 
     return (
         <>
-            <BrowserRouter>
-                {isMobile ? (
-                    <MobileApp user={user} logout={logout} />
-                ) : (
-                    <DesktopApp user={user} logout={logout} />
-                )}
-            </BrowserRouter>
+            {isMobile ? (
+                <MobileApp user={user} logout={logout} />
+            ) : (
+                <DesktopApp user={user} logout={logout} />
+            )}
 
             <OfflineIndicator />
 
@@ -219,9 +302,11 @@ function App() {
     return (
         <ToastProvider>
             <AuthProvider>
-                <AppShell />
-                <TapDroplets />
-                <DesktopCursor />
+                <BrowserRouter>
+                    <AppShell />
+                    <TapDroplets />
+                    <DesktopCursor />
+                </BrowserRouter>
             </AuthProvider>
         </ToastProvider>
     );

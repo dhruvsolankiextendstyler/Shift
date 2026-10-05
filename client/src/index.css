@@ -3602,6 +3602,359 @@ select:focus-visible {
 }
 
 /* ============================================================
+   Mandatory Onboarding Flow — How Shift Works
+   ============================================================ */
+
+.onboarding-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(7, 10, 14, 0.88);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: var(--space-4);
+    animation: fade-in var(--dur) var(--ease-out) both;
+}
+
+.onboarding-panel {
+    width: min(500px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    background: var(--surface-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    box-shadow: var(--shadow-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    animation: pop-in var(--dur) var(--ease-spring) both;
+}
+
+.onboarding-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.onboarding-header .eyebrow {
+    margin: 0;
+    font-size: var(--text-xs);
+    letter-spacing: 1.5px;
+}
+
+.onboarding-dots {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.onboarding-dots .dot {
+    cursor: pointer;
+    background: var(--border-strong);
+    transition: width var(--dur) var(--ease-spring),
+        background var(--dur) var(--ease-out);
+}
+
+.onboarding-dots .dot.active {
+    width: 22px;
+    border-radius: 4px;
+    background: var(--accent);
+}
+
+.onboarding-dots .dot:hover:not(.active) {
+    background: var(--border-hover);
+}
+
+.onboarding-step-content {
+    animation: fade-up var(--dur) var(--ease-out) both;
+}
+
+.onboarding-title {
+    margin: var(--space-1) 0 var(--space-2);
+    font-family: var(--font-display);
+    font-size: clamp(22px, 3.5vw, 26px);
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    color: var(--text);
+}
+
+.onboarding-text {
+    margin: 0 0 var(--space-4);
+    color: var(--text-muted);
+    font-size: var(--text-base);
+    line-height: 1.6;
+}
+
+.onboarding-card-preview {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 110px;
+    text-align: center;
+}
+
+.onboarding-pill-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--text-xs);
+    letter-spacing: 1.2px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: var(--space-3);
+}
+
+.onboarding-pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--viz-good);
+    box-shadow: 0 0 8px var(--viz-good);
+}
+
+.onboarding-preview-equation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+}
+
+.equation-chip {
+    padding: 7px 14px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-weight: 500;
+}
+
+.equation-chip--highlight {
+    background: var(--accent);
+    color: var(--on-accent);
+    border-color: var(--accent);
+    font-weight: 700;
+}
+
+.equation-op {
+    color: var(--text-dim);
+    font-weight: 600;
+}
+
+.onboarding-flow-steps {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: var(--space-1);
+}
+
+.flow-step-box {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 8px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    text-align: center;
+}
+
+.flow-step-box--highlight {
+    border-color: var(--border-hover);
+    background: rgba(245, 245, 245, 0.08);
+}
+
+.flow-step-num {
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.flow-step-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text);
+}
+
+.flow-step-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.flow-arrow {
+    color: var(--text-dim);
+    font-size: var(--text-base);
+    flex-shrink: 0;
+}
+
+.onboarding-slide-mock {
+    width: 100%;
+    max-width: 320px;
+}
+
+.slide-mock-track {
+    display: flex;
+    align-items: center;
+    background: var(--surface-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    padding: 4px;
+    gap: var(--space-2);
+}
+
+.slide-mock-thumb {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--on-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+.slide-mock-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}
+
+.onboarding-mock-sub {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+}
+
+.onboarding-stats-row {
+    display: flex;
+    gap: var(--space-2);
+    width: 100%;
+}
+
+.stats-pill {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 6px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    text-align: center;
+}
+
+.stats-pill-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text);
+}
+
+.stats-pill-val {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 3px;
+}
+
+.onboarding-task-chip {
+    width: 100%;
+    background: var(--surface-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    text-align: left;
+}
+
+.task-chip-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.task-chip-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text);
+}
+
+.task-chip-priority {
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--viz-warn);
+}
+
+.task-chip-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+.onboarding-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+}
+
+.onboarding-back-btn {
+    padding: 15px 22px;
+}
+
+.onboarding-btn-spacer {
+    display: none;
+}
+
+.onboarding-next-btn {
+    flex: 1;
+    margin: 0;
+}
+
+@media (max-width: 600px) {
+    .onboarding-panel {
+        padding: var(--space-4);
+        width: 100%;
+    }
+
+    .onboarding-title {
+        font-size: 20px;
+    }
+
+    .flow-step-box {
+        padding: 8px 4px;
+    }
+
+    .flow-step-label {
+        font-size: var(--text-xs);
+    }
+
+    .flow-step-sub {
+        display: none;
+    }
+}
+
+/* ============================================================
    Downtime tools — three-line FAB → Deep Read + Word Forge
    ============================================================ */
 

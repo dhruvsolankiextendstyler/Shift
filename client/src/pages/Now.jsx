@@ -60,6 +60,12 @@ function Now({ active = true }) {
                 if (!response.ok) return;
                 const tasks = await response.json();
                 if (mounted && Array.isArray(tasks)) {
+                    const activeTasks = tasks.filter((t) => t.status !== "deleted");
+                    if (activeTasks.length === 0) {
+                        navigate("/tasks", { replace: true });
+                        return;
+                    }
+
                     const activeCategories = [
                         ...new Set(
                             tasks

@@ -17,7 +17,8 @@ function publicUser(user) {
     return {
         _id: user._id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        onboardingCompleted: Boolean(user.onboardingCompleted)
     };
 }
 
@@ -48,7 +49,12 @@ router.post("/register", async (req, res) => {
             });
         }
 
-        const user = await User.create({ name, email, password });
+        const user = await User.create({
+            name,
+            email,
+            password,
+            onboardingCompleted: false
+        });
         const token = signToken(user._id);
 
         res.status(201).json({
@@ -171,7 +177,8 @@ router.post("/google", async (req, res) => {
                 name: (payload.name || normalizedEmail.split("@")[0]).trim(),
                 email: normalizedEmail,
                 googleId: payload.sub,
-                authProvider: "google"
+                authProvider: "google",
+                onboardingCompleted: false
             });
         }
 
@@ -186,5 +193,29 @@ router.post("/google", async (req, res) => {
         res.status(500).json({ error: error.message || "Failed to authenticate with Google" });
     }
 });
+
+// COMPLETE ONBOARDING
+const handleCompleteOnboarding = async (req, res) => {
+    try {
+        const user = await User.findByIdAndUpdate(
+            req.userId,
+            { onboardingCompleted: true },
+            { returnDocument: "after" }
+        );
+
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.json({
+            user: publicUser(user)
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+router.patch("/onboarding", authMiddleware, handleCompleteOnboarding);
+router.post("/onboarding", authMiddleware, handleCompleteOnboarding);
 
 module.exports = router;

@@ -76,6 +76,21 @@ export function AuthProvider({ children }) {
     const loginWithGoogle = (credential) =>
         authenticate("/auth/google", { credential });
 
+    const completeOnboarding = async () => {
+        const response = await apiFetch("/auth/onboarding", {
+            method: "PATCH"
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Failed to complete onboarding");
+        }
+
+        setUser(data.user);
+        return data.user;
+    };
+
     const logout = () => {
         clearToken();
         setUserState(null);
@@ -83,7 +98,15 @@ export function AuthProvider({ children }) {
 
     return (
         <AuthContext.Provider
-            value={{ user, loading, login, signup, loginWithGoogle, logout }}
+            value={{
+                user,
+                loading,
+                login,
+                signup,
+                loginWithGoogle,
+                logout,
+                completeOnboarding
+            }}
         >
             {children}
         </AuthContext.Provider>
