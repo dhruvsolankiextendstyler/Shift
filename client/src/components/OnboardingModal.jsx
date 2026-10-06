@@ -148,14 +148,27 @@ function StepVisual({ type }) {
     );
 }
 
-export default function OnboardingModal({ onComplete, completing = false }) {
+export default function OnboardingModal({
+    onComplete,
+    onSkip,
+    completing = false
+}) {
     const [stepIndex, setStepIndex] = useState(0);
     const panelRef = useRef(null);
     const currentScreen = SCREENS[stepIndex];
     const isLast = stepIndex === SCREENS.length - 1;
 
+    const handleSkip = useCallback(() => {
+        if (completing) return;
+        if (typeof onSkip === "function") {
+            onSkip();
+        } else if (typeof onComplete === "function") {
+            onComplete();
+        }
+    }, [completing, onSkip, onComplete]);
+
     // Guard browser Back button: push a state so popping returns to previous step
-    // and NEVER dismisses the mandatory onboarding.
+    // and returns to step 0 rather than leaving prematurely.
     useEffect(() => {
         window.history.pushState({ shiftOnboarding: true }, "");
 
@@ -180,10 +193,13 @@ export default function OnboardingModal({ onComplete, completing = false }) {
     // Trap focus inside modal & keyboard navigation
     useEffect(() => {
         const handleKeyDown = (e) => {
-            // Block Escape key completely — onboarding cannot be dismissed
+            // Escape key dismisses / skips onboarding
             if (e.key === "Escape") {
                 e.preventDefault();
                 e.stopPropagation();
+                if (!completing) {
+                    handleSkip();
+                }
                 return;
             }
 
@@ -226,7 +242,7 @@ export default function OnboardingModal({ onComplete, completing = false }) {
 
         document.addEventListener("keydown", handleKeyDown);
         return () => document.removeEventListener("keydown", handleKeyDown);
-    }, [stepIndex]);
+    }, [stepIndex, completing, handleSkip]);
 
     const handleNext = useCallback(() => {
         if (completing) return;
@@ -253,26 +269,39 @@ export default function OnboardingModal({ onComplete, completing = false }) {
             aria-describedby="onboarding-desc"
         >
             <div className="onboarding-panel" ref={panelRef}>
-                {/* Header with eyebrow & step dots */}
+                {/* Header with eyebrow, step dots & close/skip control */}
                 <div className="onboarding-header">
                     <p className="eyebrow">{currentScreen.eyebrow}</p>
-                    <div
-                        className="onboarding-dots"
-                        role="tablist"
-                        aria-label="Onboarding progress"
-                    >
-                        {SCREENS.map((s, idx) => (
-                            <button
-                                key={s.step}
-                                type="button"
-                                role="tab"
-                                aria-selected={stepIndex === idx}
-                                aria-label={`Screen ${idx + 1}: ${s.title}`}
-                                className={`dot ${stepIndex === idx ? "active" : ""}`}
-                                onClick={() => !completing && setStepIndex(idx)}
-                                disabled={completing}
-                            />
-                        ))}
+                    <div className="onboarding-header-actions">
+                        <div
+                            className="onboarding-dots"
+                            role="tablist"
+                            aria-label="Onboarding progress"
+                        >
+                            {SCREENS.map((s, idx) => (
+                                <button
+                                    key={s.step}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={stepIndex === idx}
+                                    aria-label={`Screen ${idx + 1}: ${s.title}`}
+                                    className={`dot ${stepIndex === idx ? "active" : ""}`}
+                                    onClick={() => !completing && setStepIndex(idx)}
+                                    disabled={completing}
+                                />
+                            ))}
+                        </div>
+                        <button
+                            type="button"
+                            className="onboarding-close-btn"
+                            onClick={handleSkip}
+                            disabled={completing}
+                            aria-label="Close and skip onboarding"
+                            title="Skip onboarding"
+                        >
+                            <span className="onboarding-close-text">Skip</span>
+                            <span className="onboarding-close-icon" aria-hidden="true">✕</span>
+                        </button>
                     </div>
                 </div>
 
@@ -304,7 +333,15 @@ export default function OnboardingModal({ onComplete, completing = false }) {
                             ← Back
                         </button>
                     ) : (
-                        <div className="onboarding-btn-spacer" />
+                        <button
+                            type="button"
+                            className="secondary-button onboarding-back-btn onboarding-skip-btn"
+                            onClick={handleSkip}
+                            disabled={completing}
+                            aria-label="Skip onboarding"
+                        >
+                            Skip
+                        </button>
                     )}
 
                     <button

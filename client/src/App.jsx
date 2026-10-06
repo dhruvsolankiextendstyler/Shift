@@ -92,8 +92,8 @@ function AppShell() {
         );
     }
 
-    // Mandatory first-time user onboarding: cannot be skipped or dismissed.
-    // Keeps the rest of the application unmounted until explicit completion.
+    // First-time user onboarding: can be stepped through or skipped.
+    // Keeps the rest of the application unmounted until explicit completion or dismissal.
     if (!user.onboardingCompleted) {
         const handleOnboardingComplete = async () => {
             if (completingOnboarding) return;
@@ -145,6 +145,7 @@ function AppShell() {
             <div className="app">
                 <OnboardingModal
                     onComplete={handleOnboardingComplete}
+                    onSkip={handleOnboardingComplete}
                     completing={completingOnboarding}
                 />
             </div>
