@@ -3,6 +3,7 @@ import { apiFetch } from "../services/api";
 import ErrorState from "../components/ErrorState";
 import NumberReveal from "../components/NumberReveal";
 import { computeDailyReflection, computeWeeklyReflection } from "../services/reflection";
+import { toUnifiedActivities } from "../services/unifiedActivity";
 
 /* ---------- tiny chart primitives (hand-rolled, theme-matched) ---------- */
 
@@ -378,27 +379,56 @@ export function useInsightsData() {
         const completionRate =
             total > 0 ? Math.round((completed / total) * 100) : 0;
 
-        // Category magnitude
-        const categoryCounts = {};
-        actions.forEach((a) => {
-            const c = a.taskId?.category;
-            if (c) categoryCounts[c] = (categoryCounts[c] || 0) + 1;
-        });
-        const categories = Object.entries(categoryCounts)
-            .sort((a, b) => b[1] - a[1])
-            .map(([label, value]) => ({ label, value }));
+        // Unified activity stream across tasks and downtime
+        const unified = toUnifiedActivities(actions, activityHistory);
 
-        // Daily counts (heatmap + overall streak)
-        // Use completedAt when available so manually-backdated actions land on
-        // the correct calendar day, not the day they were entered.
+        const taskCompletedCount = actions.filter((a) => a.status === "completed").length;
+        const readCount = activityHistory.filter((v) => v.type === "read").length;
+        const vocabCount = activityHistory.filter((v) => v.type === "vocab").length;
+        const totalCompletedAll = taskCompletedCount + readCount + vocabCount;
+
+        const activitySplit = [
+            { label: "Tasks", value: taskCompletedCount, color: "var(--viz-blue)" },
+            { label: "Words", value: vocabCount, color: "var(--viz-good)" },
+            { label: "Articles", value: readCount, color: "#d29922" }
+        ];
+
+        // Duration patterns
+        const durationBuckets = [
+            { label: "< 15 min", value: 0 },
+            { label: "15–30 min", value: 0 },
+            { label: "31–60 min", value: 0 },
+            { label: "60+ min", value: 0 }
+        ];
+        actions.forEach((a) => {
+            if (a.status === "completed" && typeof a.taskId?.estimatedTime === "number" && a.taskId.estimatedTime > 0) {
+                const mins = a.taskId.estimatedTime;
+                if (mins < 15) durationBuckets[0].value++;
+                else if (mins <= 30) durationBuckets[1].value++;
+                else if (mins <= 60) durationBuckets[2].value++;
+                else durationBuckets[3].value++;
+            }
+        });
+        const hasDurations = durationBuckets.some((b) => b.value > 0);
+
+        // Daily counts & active days across ALL meaningful completed activity (unified source of truth)
         const dayCounts = {};   
         const activeDays = new Set();
-        actions.forEach((a) => {
-            const ref = a.completedAt || a.createdAt;
-            if (ref) {
-                const key = dayKey(ref);
+        unified.forEach((e) => {
+            if (e.status === "completed") {
+                const key = dayKey(e.date);
                 dayCounts[key] = (dayCounts[key] || 0) + 1;
-                if (a.status === "completed") activeDays.add(key);
+                activeDays.add(key);
+            }
+        });
+        // Also capture in-progress or started action attempts for full activity map
+        actions.forEach((a) => {
+            if (a.status !== "completed") {
+                const ref = a.completedAt || a.createdAt;
+                if (ref) {
+                    const key = dayKey(ref);
+                    dayCounts[key] = (dayCounts[key] || 0) + 1;
+                }
             }
         });
 
@@ -501,6 +531,17 @@ export function useInsightsData() {
                 };
             });
 
+        // Categories from completed task actions
+        const catCounts = {};
+        actions.forEach((a) => {
+            if (a.status !== "completed") return;
+            const cat = a.taskId?.category || "Other";
+            catCounts[cat] = (catCounts[cat] || 0) + 1;
+        });
+        const categories = Object.entries(catCounts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([label, value]) => ({ label, value }));
+
         // Genuine Daily and Weekly Reflections from real activity data
         const dailyReflection = computeDailyReflection(actions, activityHistory);
         const weeklyReflection = computeWeeklyReflection(actions, activityHistory);
@@ -515,6 +556,10 @@ export function useInsightsData() {
             worse,
             completionRate,
             categories,
+            activitySplit,
+            totalCompletedAll,
+            durationBuckets,
+            hasDurations,
             dayCounts,
             permanentTasks,
             permanentLogged,
@@ -612,6 +657,35 @@ export function InsightsTabContent({ d, tab }) {
                         )}
                     </section>
                 </div>
+
+                {d.totalCompletedAll > 0 && (
+                    <div className="insights-grid">
+                        <section className="insight-card">
+                            <p className="eyebrow">ACTIVITY MIX</p>
+                            <h2>Where your moves go</h2>
+                            <div className="chart-with-legend">
+                                <Donut
+                                    segments={d.activitySplit}
+                                    centerValue={d.totalCompletedAll}
+                                    centerLabel="completed"
+                                />
+                                <Legend segments={d.activitySplit} />
+                            </div>
+                        </section>
+
+                        <section className="insight-card">
+                            <p className="eyebrow">DURATIONS</p>
+                            <h2>Preferred task length</h2>
+                            {d.hasDurations ? (
+                                <BarList items={d.durationBuckets} />
+                            ) : (
+                                <p className="chart-empty">
+                                    Complete tasks with estimated times to see duration patterns.
+                                </p>
+                            )}
+                        </section>
+                    </div>
+                )}
 
                 {d.categories.length > 0 && (
                     <section className="insight-card wide">

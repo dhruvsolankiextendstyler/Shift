@@ -8,6 +8,7 @@ import TaskFormFields from "../components/TaskFormFields";
 import { useIsMobile } from "../hooks/useIsMobile";
 import Footer from "../components/Footer";
 import { computeDailyReflection } from "../services/reflection";
+import { toUnifiedActivities } from "../services/unifiedActivity";
 
 // History is a calendar of everything the user has done — task actions (from
 // /actions) merged with downtime sessions (from /activity/history), the SAME
@@ -19,38 +20,10 @@ const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const KIND_META = {
     task: { label: "Task", mark: "✓" },
     read: { label: "Deep Read", mark: "✦" },
-    vocab: { label: "Word Forge", mark: "✦" }
+    vocab: { label: "Word Forge", mark: "✦" },
+    word: { label: "Word Forge", mark: "✦" },
+    article: { label: "Deep Read", mark: "✦" }
 };
-
-// Fold task actions + downtime activities into one dated, local-time list.
-function mergeEntries(actions, activities) {
-    const fromActions = actions.map((a) => ({
-        id: a._id,
-        kind: "task",
-        title: a.taskId?.title || "Task",
-        category: a.taskId?.category || null,
-        minutes: a.taskId?.estimatedTime ?? null,
-        status: a.status,
-        source: a.source || "shift",
-        note: a.note || "",
-        date: new Date(a.completedAt || a.createdAt),
-        action: a
-    }));
-    const fromActivities = activities.map((v) => ({
-        id: v._id,
-        kind: v.type, // "read" | "vocab"
-        title: v.title || KIND_META[v.type]?.label || "Session",
-        category: null,
-        minutes: null,
-        status: "completed",
-        source: "shift",
-        note: "",
-        date: new Date(v.completedAt)
-    }));
-    return [...fromActions, ...fromActivities]
-        .filter((e) => !Number.isNaN(e.date.getTime()))
-        .sort((a, b) => b.date - a.date);
-}
 
 // One fetch of the merged history; distinguishes loading / error / data so the
 // UI renders each state separately (an error is never masked as "empty").
@@ -74,7 +47,7 @@ function useActivityHistory() {
                 actionsRes.json(),
                 activityRes.json()
             ]);
-            setEntries(mergeEntries(actions, activities));
+            setEntries(toUnifiedActivities(actions, activities));
         } catch (err) {
             console.error("Failed to load history:", err);
             setError(true);

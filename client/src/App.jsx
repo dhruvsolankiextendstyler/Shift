@@ -10,7 +10,7 @@ import {
 } from "react-router-dom";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { ToastProvider, useToast } from "./context/ToastContext";
+import { ToastProvider } from "./context/ToastContext";
 import { useIsMobile } from "./hooks/useIsMobile";
 import {
     useActiveAction,
@@ -26,27 +26,25 @@ import Insights from "./pages/Insights";
 import Saved from "./pages/Saved";
 import MobileShell from "./components/MobileShell";
 import Modal from "./components/Modal";
-import OnboardingModal from "./components/OnboardingModal";
 import TapDroplets from "./components/TapDroplets";
 import DesktopCursor from "./components/DesktopCursor";
 import Footer from "./components/Footer";
+import ToolsMenu from "./components/ToolsMenu";
 import OfflineIndicator from "./components/OfflineIndicator";
 
 function AppShell() {
-    const { user, loading, logout: rawLogout, completeOnboarding, setUser } = useAuth();
-    const { toast } = useToast();
+    const { user, loading, logout: rawLogout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const isMobile = useIsMobile();
     const activeAction = useActiveAction();
 
     const [confirmingLogout, setConfirmingLogout] = useState(false);
-    const [completingOnboarding, setCompletingOnboarding] = useState(false);
     const logout = () => setConfirmingLogout(true);
 
     // If the user has zero tasks and is on the root page, directly land on TASKS
     useEffect(() => {
-        if (!user || !user.onboardingCompleted) return;
+        if (!user) return;
         if (location.pathname !== "/") return;
 
         let cancelled = false;
@@ -66,7 +64,7 @@ function AppShell() {
         return () => {
             cancelled = true;
         };
-    }, [user?._id, user?.onboardingCompleted, location.pathname, navigate]);
+    }, [user?._id, location.pathname, navigate]);
 
     // Mirror a started task across the user's devices: poll while logged in so
     // a focus lock on one device shows on the others and releases everywhere
@@ -88,66 +86,6 @@ function AppShell() {
         return (
             <div className="app">
                 <Auth />
-            </div>
-        );
-    }
-
-    // First-time user onboarding: can be stepped through or skipped.
-    // Keeps the rest of the application unmounted until explicit completion or dismissal.
-    if (!user.onboardingCompleted) {
-        const handleOnboardingComplete = async () => {
-            if (completingOnboarding) return;
-            setCompletingOnboarding(true);
-
-            try {
-                // 1. Complete onboarding on backend (updates persistent User model)
-                // Concurrently check task pool to determine first-time routing
-                const [userRes, tasksRes] = await Promise.all([
-                    completeOnboarding(false),
-                    apiFetch("/tasks").catch(() => null)
-                ]);
-
-                // 2. Check if user already has tasks in the pool
-                let hasTasks = false;
-                if (tasksRes && tasksRes.ok) {
-                    const tasks = await tasksRes.json();
-                    const activeTasks = Array.isArray(tasks)
-                        ? tasks.filter((t) => t.status !== "deleted")
-                        : [];
-                    hasTasks = activeTasks.length > 0;
-                }
-
-                // 3. First-time destination: if no tasks, land on Tasks with welcoming toast;
-                // otherwise continue to normal destination (Now).
-                // Navigate BEFORE updating user state so the destination route is already
-                // active when OnboardingModal unmounts and DesktopApp/MobileShell mounts.
-                if (!hasTasks) {
-                    navigate("/tasks", { replace: true });
-                    toast("Add a few tasks and Shift can get to work.", "info");
-                } else {
-                    navigate("/", { replace: true });
-                }
-
-                // 4. Update persistent frontend user state to unmount onboarding modal
-                setUser(userRes);
-            } catch (err) {
-                console.error("Error completing onboarding:", err);
-                toast(
-                    err.message || "Couldn't finish setup. Try again.",
-                    "error"
-                );
-            } finally {
-                setCompletingOnboarding(false);
-            }
-        };
-
-        return (
-            <div className="app">
-                <OnboardingModal
-                    onComplete={handleOnboardingComplete}
-                    onSkip={handleOnboardingComplete}
-                    completing={completingOnboarding}
-                />
             </div>
         );
     }
@@ -285,6 +223,7 @@ function DesktopApp({ user, logout }) {
             </main>
 
             <Footer />
+            <ToolsMenu active={true} />
         </div>
     );
 }

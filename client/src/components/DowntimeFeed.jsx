@@ -23,7 +23,8 @@ function DowntimeFeed({
     renderItem,
     snap,
     cardClass = "",
-    loadingLabel
+    loadingLabel,
+    active = true
 }) {
     const [items, setItems] = useState([]);
     // "loading" | "ready" | "error"
@@ -38,6 +39,21 @@ function DowntimeFeed({
     const timersRef = useRef(new Map()); // key -> dwell timeout
     const ioRef = useRef(null);
     const feedRef = useRef(null);
+    const activeRef = useRef(active);
+
+    useEffect(() => {
+        activeRef.current = active;
+        if (!active) {
+            timersRef.current.forEach((t) => clearTimeout(t));
+            timersRef.current.clear();
+        } else if (feedRef.current && ioRef.current) {
+            const cards = feedRef.current.querySelectorAll(".dt-card");
+            cards.forEach((card) => {
+                ioRef.current.unobserve(card);
+                ioRef.current.observe(card);
+            });
+        }
+    }, [active]);
 
     useEffect(() => {
         itemsRef.current = items;
@@ -91,6 +107,7 @@ function DowntimeFeed({
     // Cards carry their array index in data-key (append-only feed → stable).
     const onIntersect = useCallback(
         (entries) => {
+            if (!activeRef.current) return;
             for (const e of entries) {
                 const key = e.target.dataset.key;
                 if (key == null) continue;
@@ -110,7 +127,7 @@ function DowntimeFeed({
                     ) {
                         const t = setTimeout(() => {
                             timersRef.current.delete(key);
-                            if (seenRef.current.has(key)) return;
+                            if (seenRef.current.has(key) || !activeRef.current) return;
                             seenRef.current.add(key);
                             const it = itemsRef.current[idx];
                             logActivity(logKind, it ? titleOf(it) : "");

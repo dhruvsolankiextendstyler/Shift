@@ -10,7 +10,7 @@ import { useEffect, useRef } from "react";
 // 5. Preserves native I-beam cursor & selection over inputs and textareas.
 // 6. Respects prefers-reduced-motion.
 
-const TRAIL_LENGTH = 5;
+const TRAIL_LENGTH = 7;
 const COLOR = "var(--tap-drop-color, var(--accent, #f5f5f5))";
 
 export default function DesktopCursor() {
@@ -49,12 +49,15 @@ export default function DesktopCursor() {
         // Position history for tail points
         const points = Array.from({ length: TRAIL_LENGTH }, () => ({
             x: -100,
-            y: -100
+            y: -100,
+            angle: 0
         }));
 
-        const lerpFactors = [0.38, 0.28, 0.20, 0.14, 0.09];
-        const scales = [0.85, 0.7, 0.55, 0.4, 0.25];
-        const opacities = [0.5, 0.38, 0.28, 0.18, 0.09];
+        // Slower, fluid lerp factors so the trail sweeps with gentle inertia
+        const lerpFactors = [0.24, 0.18, 0.13, 0.09, 0.065, 0.045, 0.03];
+        // Tapered-comet thickness profile: slightly thicker at head, smoothly tapering to tail
+        const scales = [1.20, 1.00, 0.82, 0.65, 0.48, 0.32, 0.18];
+        const opacities = [0.65, 0.54, 0.44, 0.34, 0.25, 0.18, 0.12];
 
         const onMouseMove = (e) => {
             mouseX = e.clientX;
@@ -64,6 +67,11 @@ export default function DesktopCursor() {
             if (!isVisible) {
                 isVisible = true;
                 root.style.opacity = "1";
+                for (let i = 0; i < TRAIL_LENGTH; i++) {
+                    points[i].x = mouseX;
+                    points[i].y = mouseY;
+                    points[i].angle = 0;
+                }
             }
 
             // Check if hovering over interactive elements or text inputs
@@ -201,8 +209,8 @@ export default function DesktopCursor() {
                     // Update tail points with smooth lerping
                     if (!reduceMotion.matches) {
                         const idleMs = now - lastMoveTime;
-                        // Tail stays visible for 350ms idle, then fades smoothly over 450ms (~800ms total)
-                        const idleFade = Math.max(0, 1 - Math.max(0, idleMs - 350) / 450);
+                        // Tail stays visible for 1000ms idle, then fades smoothly over 800ms (~1800ms total)
+                        const idleFade = Math.max(0, 1 - Math.max(0, idleMs - 1000) / 800);
 
                         let prevX = mouseX;
                         let prevY = mouseY;
@@ -216,12 +224,30 @@ export default function DesktopCursor() {
                             p.x += (prevX - p.x) * factor;
                             p.y += (prevY - p.y) * factor;
 
+                            const dx = prevX - p.x;
+                            const dy = prevY - p.y;
+                            const dist = Math.hypot(dx, dy);
+
+                            if (dist > 0.4) {
+                                p.angle = Math.atan2(dy, dx);
+                            }
+
                             prevX = p.x;
                             prevY = p.y;
 
                             const pointOpacity = opacities[i] * idleFade;
                             el.style.opacity = pointOpacity.toFixed(3);
-                            el.style.transform = `translate3d(${p.x}px, ${p.y}px, 0) scale(${scales[i]})`;
+
+                            // Subtle tapered-comet shape: slightly thicker near cursor, smoothly tapered to tail
+                            const stretch = Math.min(dist * 0.035, 0.45);
+                            const distToCursor = Math.hypot(mouseX - p.x, mouseY - p.y);
+                            const convergence = Math.min(1, Math.max(0.75, distToCursor / 6));
+                            const baseScale = scales[i] * (i === 0 ? convergence : 1);
+                            const scaleX = baseScale * (1 + stretch);
+                            const scaleY = baseScale;
+                            const angle = p.angle || 0;
+
+                            el.style.transform = `translate3d(${p.x}px, ${p.y}px, 0) rotate(${angle}rad) scale(${scaleX.toFixed(3)}, ${scaleY.toFixed(3)})`;
                         }
                     } else {
                         // Reduced motion: hide tail

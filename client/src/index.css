@@ -883,7 +883,30 @@ select:focus-visible {
 .task-meta {
     color: var(--text-muted);
     font-size: var(--text-base);
-    margin-bottom: 35px;
+    margin-bottom: var(--space-3);
+}
+
+.recommendation-why {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    margin: 0 0 var(--space-5);
+    padding: 6px 14px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    letter-spacing: 0.2px;
+}
+
+.recommendation-why .why-label {
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-size: 10px;
 }
 
 .action-buttons,
@@ -4612,13 +4635,15 @@ select:focus-visible {
     flex: 1;
     min-height: 0;
     display: flex;
+    width: calc(var(--dt-tabs-count, 3) * 100%);
     overflow: hidden;
-    transform: translateX(calc(var(--dt-tab, 0) * -100%));
+    transform: translateX(calc(var(--dt-tab, 0) * (-100% / var(--dt-tabs-count, 3))));
     transition: transform var(--dur) var(--ease-out);
 }
 
 .dt-pane {
-    flex: 0 0 100%;
+    flex: 0 0 calc(100% / var(--dt-tabs-count, 3));
+    width: calc(100% / var(--dt-tabs-count, 3));
     min-width: 0;
     height: 100%;
     display: flex;
@@ -4669,15 +4694,14 @@ select:focus-visible {
     animation: fade-up var(--dur) var(--ease-out) both;
 }
 
-/* Articles are pinned to exactly one page and dressed as a distinct raised
-   card, so "article 1 ends / article 2 begins" is unmistakable and nobody gets
-   trapped scrolling a wall of text between snaps. Prose that overruns the page
-   is clipped with a soft bottom fade; the always-visible "Read the full thing"
-   link carries the rest. A short article simply never reaches the fade zone. */
+/* Articles are structured editorial reading cards. Uses proximity snapping so
+   long briefings can be scrolled naturally, while keeping each card clearly bounded. */
 .dt-card--article {
-    height: 100%;
-    justify-content: stretch;
+    min-height: 100%;
+    height: auto;
+    justify-content: flex-start;
     padding: var(--space-4);
+    scroll-snap-stop: normal;
 }
 
 /* Constrain reading width on wide screens so it isn't a stretched phone. */
@@ -4691,8 +4715,8 @@ select:focus-visible {
 .dt-card--article .dt-article {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    min-height: 0;
+    min-height: 100%;
+    height: auto;
     padding: var(--space-5) var(--space-4);
     background: var(--surface);
     border: 1px solid var(--border);
@@ -4704,23 +4728,13 @@ select:focus-visible {
     flex-shrink: 0;
     max-height: 26vh;
     margin-bottom: var(--space-3);
+    border-radius: var(--radius);
+    object-fit: cover;
 }
 
 .dt-card--article .read-extract {
-    flex: 1;
-    min-height: 0;
     margin-bottom: var(--space-3);
-    overflow: hidden;
-    -webkit-mask-image: linear-gradient(
-        to bottom,
-        #000 calc(100% - 52px),
-        transparent
-    );
-    mask-image: linear-gradient(
-        to bottom,
-        #000 calc(100% - 52px),
-        transparent
-    );
+    overflow: visible;
 }
 
 .dt-card--article .read-more {
@@ -5130,6 +5144,21 @@ select:focus-visible {
     border-radius: var(--radius-sm);
     background: var(--surface-raised);
     border: 1px solid var(--border);
+}
+
+.resurfaced-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding: 2px 7px;
+    border-radius: var(--radius-sm);
+    background: rgba(220, 160, 40, 0.12);
+    border: 1px solid rgba(220, 160, 40, 0.3);
 }
 
 .read-hook {

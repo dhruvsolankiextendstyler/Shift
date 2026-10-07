@@ -5,6 +5,7 @@ import { startActiveAction } from "../services/activeAction";
 import ToolsMenu from "../components/ToolsMenu";
 import SlideToConfirm from "../components/SlideToConfirm";
 import FlipText from "../components/FlipText";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 // The check-in + recommendation survive a tab switch. On desktop the router
 // unmounts Now the moment you visit another tab, which otherwise dropped a
@@ -31,6 +32,7 @@ function resetFlowCache() {
 
 function Now({ active = true }) {
     const navigate = useNavigate();
+    const isMobile = useIsMobile();
 
     const [category, setCategory] = useState(flowCache.category);
     const [time, setTime] = useState(flowCache.time);
@@ -367,6 +369,12 @@ function Now({ active = true }) {
                         {recommendation.priority} priority
                     </p>
 
+                    {recommendation.whyThis && (
+                        <div className="recommendation-why">
+                            <span className="why-label">Why this:</span> {recommendation.whyThis}
+                        </div>
+                    )}
+
                     <SlideToConfirm
                         label="Slide to start ⚡"
                         confirmedLabel="Let's go ⚡"
@@ -383,7 +391,7 @@ function Now({ active = true }) {
                 </section>
             )}
 
-            <ToolsMenu active={active} />
+            {isMobile && <ToolsMenu active={active} />}
         </div>
     );
 }

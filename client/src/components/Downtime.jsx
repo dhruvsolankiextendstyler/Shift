@@ -29,7 +29,14 @@ function WordCard({ entry }) {
     return (
         <div className="dt-word">
             <div className="dt-card-head">
-                <span className="eyebrow dt-card-eyebrow">✦ VOCABULARY</span>
+                <div className="dt-card-meta">
+                    <span className="eyebrow dt-card-eyebrow">✦ VOCABULARY</span>
+                    {entry.isResurfaced && (
+                        <span className="resurfaced-pill" title="Saved word resurfaced for review">
+                            ✦ REVISIT
+                        </span>
+                    )}
+                </div>
                 <BookmarkButton
                     type="word"
                     itemId={entry.word}
@@ -73,6 +80,11 @@ function ArticleCard({ article }) {
                     {article.readingTime && (
                         <span className="read-time-badge">
                             {article.readingTime}
+                        </span>
+                    )}
+                    {article.isResurfaced && (
+                        <span className="resurfaced-pill" title="Saved briefing resurfaced for review">
+                            ✦ REVISIT
                         </span>
                     )}
                 </div>
@@ -341,9 +353,9 @@ function Downtime({ open, onClose }) {
     }, [open]);
 
     // Stable fetchers so the feed's mount effect / observer don't churn.
-    const fetchWordItem = useCallback(() => nextWord(), []);
+    const fetchWordItem = useCallback((prev) => nextWord(prev?.word), []);
     const fetchArticleItem = useCallback(
-        (prev) => nextArticle(prev?.topic),
+        (prev) => nextArticle(prev?.topic || prev?.title),
         []
     );
 
@@ -430,6 +442,7 @@ function Downtime({ open, onClose }) {
                     >
                         <DowntimeFeed
                             key="words"
+                            active={tab === "words"}
                             snap="mandatory"
                             fetchNext={fetchWordItem}
                             titleOf={(w) => w.word}
@@ -446,7 +459,8 @@ function Downtime({ open, onClose }) {
                     >
                         <DowntimeFeed
                             key="articles"
-                            snap="mandatory"
+                            active={tab === "articles"}
+                            snap="proximity"
                             cardClass="dt-card--article"
                             fetchNext={fetchArticleItem}
                             titleOf={(a) => a.title}

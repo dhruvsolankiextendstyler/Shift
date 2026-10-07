@@ -202,3 +202,37 @@ test("a task with no effort field is treated as medium", () => {
 
     assert.equal(asUndefined, asMedium);
 });
+
+// ---- Smarter recommendation & Not This feedback -------------------------
+
+test("recent Not This skip applies a decaying penalty allowing eventual recovery", () => {
+    const task = makeTask();
+    const sess = session("okay", "medium", 60);
+
+    const baseline = getRecommendationScore(task, sess, [], []);
+    // Most recent skip (index 0)
+    const recentSkip = getRecommendationScore(task, sess, [], [skipped(task)]);
+    // Older skip (decayed)
+    const olderDummy1 = makeTask();
+    const olderDummy2 = makeTask();
+    const olderSkip = getRecommendationScore(task, sess, [], [
+        completed(olderDummy1, "better"),
+        completed(olderDummy2, "better"),
+        skipped(task)
+    ]);
+
+    assert.ok(recentSkip < baseline, "Recent skip must lower score");
+    assert.ok(olderSkip > recentSkip, "Older skip penalty must decay and recover towards baseline");
+});
+
+test("recommendTask provides a grounded whyThis explanation", () => {
+    const task = makeTask({ estimatedTime: 30, priority: "high", effort: "medium" });
+    const sess = session("okay", "medium", 30);
+
+    const result = recommendTask([task], sess, [], []);
+    assert.ok(result.whyThis, "Recommendation must have whyThis explanation");
+    assert.ok(
+        result.whyThis.includes("30m window") || result.whyThis.includes("energy"),
+        `whyThis must be grounded in real signals: ${result.whyThis}`
+    );
+});

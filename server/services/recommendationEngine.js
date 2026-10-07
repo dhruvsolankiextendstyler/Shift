@@ -73,7 +73,25 @@ function getRecommendationScore(
         score += 10;
     }
 
-    // PERSONAL FEEDBACK
+    // DURATION FIT: bonus when the task effectively uses the available window
+    if (session.availableTime && task.estimatedTime) {
+        const timeRatio = task.estimatedTime / session.availableTime;
+        if (timeRatio >= 0.75 && timeRatio <= 1.0) {
+            score += 10;
+        }
+    }
+
+    // RECENT "NOT THIS" REJECTION SIGNAL:
+    // If a task in this category was rejected within the last 3 actions, apply a soft category cooldown
+    const recentSkips = pastActions.slice(0, 3).filter((a) => a.status === "skipped");
+    const categoryRejectedRecently = recentSkips.some(
+        (a) => a.taskId && a.taskId.category === task.category
+    );
+    if (categoryRejectedRecently) {
+        score -= 15;
+    }
+
+    // PERSONAL FEEDBACK & COMPLETION HISTORY
     const taskActions = pastActions.filter(
         (action) =>
             action.taskId &&
@@ -81,8 +99,10 @@ function getRecommendationScore(
                 task._id.toString()
     );
 
-    taskActions.forEach((action) => {
+    let completedCount = 0;
+    taskActions.forEach((action, idx) => {
         if (action.status === "completed") {
+            completedCount++;
             if (action.feedback === "better") {
                 score += 25;
             }
@@ -97,11 +117,61 @@ function getRecommendationScore(
         }
 
         if (action.status === "skipped") {
-            score -= 10;
+            // Decaying penalty: recent rejections carry more weight, older ones decay so options resurface
+            const recencyPenalty = idx === 0 ? 20 : idx < 3 ? 15 : 10;
+            score -= recencyPenalty;
         }
     });
 
+    // Proven task completion track record
+    if (completedCount > 0 || (task.completionCount && task.completionCount > 0)) {
+        score += 12;
+    }
+
     return score;
+}
+
+function generateWhyThis(task, session, recentTasks = [], pastActions = []) {
+    const reasons = [];
+
+    // 1. Duration signal
+    if (session.availableTime) {
+        reasons.push(`Fits your ${session.availableTime}m window`);
+    }
+
+    // 2. Energy signal
+    const energy = levelScore[session.energy] || 2;
+    const effort = levelScore[task.effort] || 2;
+    if (energy === effort) {
+        reasons.push("Matches your current energy");
+    } else if (effort < energy) {
+        reasons.push("Low effort for quick momentum");
+    }
+
+    // 3. Category variety signal
+    const sameCategoryCount = recentTasks.filter(
+        (r) => r.category === task.category
+    ).length;
+    if (sameCategoryCount === 0) {
+        reasons.push(`Fresh category you haven't done recently`);
+    }
+
+    // 4. Track record / Priority signal
+    const isCompletedBefore = pastActions.some(
+        (a) =>
+            a.taskId &&
+            a.taskId._id.toString() === task._id.toString() &&
+            a.status === "completed"
+    ) || (task.completionCount && task.completionCount > 0);
+
+    if (isCompletedBefore) {
+        reasons.push("Proven track record of completion");
+    } else if (task.priority === "high") {
+        reasons.push("High priority in your pool");
+    }
+
+    // Combine 1 or 2 strongest grounded signals
+    return reasons.slice(0, 2).join(" • ");
 }
 
 function recommendTask(
@@ -115,11 +185,7 @@ function recommendTask(
     }
 
     // Available time is a HARD limit, not a soft nudge: a task the user cannot
-    // finish in the window they gave must never be recommended. Choosing 15 min
-    // must never surface a 30 min task — not even when nothing shorter exists.
-    // If nothing fits, return null so the caller can say so plainly instead of
-    // silently handing back an over-long task. Allowed range: estimatedTime <=
-    // availableTime (exact fit counts).
+    // finish in the window they gave must never be recommended.
     const fitting = tasks.filter(
         (task) => task.estimatedTime <= session.availableTime
     );
@@ -144,15 +210,27 @@ function recommendTask(
     // always deterministically picking the first in array order.
     const topScore = scoredTasks[0].score;
     const topTied = scoredTasks.filter((item) => item.score === topScore);
+    let chosenTask;
     if (topTied.length > 1) {
         const randomIndex = Math.floor(Math.random() * topTied.length);
-        return topTied[randomIndex].task;
+        chosenTask = topTied[randomIndex].task;
+    } else {
+        chosenTask = scoredTasks[0].task;
     }
 
-    return scoredTasks[0].task;
+    // Clone and attach whyThis explanation
+    const whyThis = generateWhyThis(chosenTask, session, recentTasks, pastActions);
+    if (typeof chosenTask.toObject === "function") {
+        const obj = chosenTask.toObject();
+        obj.whyThis = whyThis;
+        return obj;
+    }
+
+    return { ...chosenTask, whyThis };
 }
 
 module.exports = {
     recommendTask,
-    getRecommendationScore
+    getRecommendationScore,
+    generateWhyThis
 };

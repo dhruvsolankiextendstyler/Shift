@@ -410,7 +410,50 @@ export function applyExamples(meanings, ex) {
     });
 }
 
-export async function nextWord() {
+const SAVED_ITEMS_KEY = "shift_saved_items";
+
+let wordFeedCounter = 0;
+let articleFeedCounter = 0;
+
+function getSavedReview(type, excludeIdent) {
+    try {
+        const raw = localStorage.getItem(SAVED_ITEMS_KEY);
+        if (!raw) return null;
+        const list = JSON.parse(raw);
+        if (!Array.isArray(list)) return null;
+        const saved = list.filter((it) => it && it.type === type && it.content);
+        if (saved.length === 0) return null;
+
+        const filtered = excludeIdent
+            ? saved.filter((it) => {
+                  const id = (it.itemId || it.content?.word || it.content?.title || "").toLowerCase();
+                  return id !== excludeIdent.toLowerCase();
+              })
+            : saved;
+        const pool = filtered.length > 0 ? filtered : saved;
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        if (pick && pick.content) {
+            return {
+                ...pick.content,
+                isResurfaced: true
+            };
+        }
+    } catch {
+        return null;
+    }
+    return null;
+}
+
+export async function nextWord(excludeWord) {
+    wordFeedCounter++;
+    // Resurface saved words for review every 3-4 items if user has bookmarks
+    if (wordFeedCounter % 3 === 0 && Math.random() < 0.75) {
+        const resurfaced = getSavedReview("word", excludeWord);
+        if (resurfaced && resurfaced.word && resurfaced.meanings?.length) {
+            return resurfaced;
+        }
+    }
+
     // 1. Try online fetch
     if (typeof navigator === "undefined" || navigator.onLine !== false) {
         for (let attempt = 0; attempt < 3; attempt++) {
@@ -646,6 +689,15 @@ function parseStructuredArticle(text, fallbackTitle) {
 }
 
 export async function nextArticle(excludeTopic) {
+    articleFeedCounter++;
+    // Resurface saved articles for review every 3-4 items if user has bookmarks
+    if (articleFeedCounter % 3 === 0 && Math.random() < 0.75) {
+        const resurfaced = getSavedReview("article", excludeTopic);
+        if (resurfaced && (resurfaced.title || resurfaced.topic) && resurfaced.blocks?.length) {
+            return resurfaced;
+        }
+    }
+
     // 1. Try online fetch
     if (typeof navigator === "undefined" || navigator.onLine !== false) {
         let last = excludeTopic;
