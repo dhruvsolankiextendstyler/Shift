@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
     fetchFriends,
     searchUsers,
@@ -10,7 +10,8 @@ import {
     fetchChallenges,
     createChallenge,
     respondChallenge,
-    cancelChallenge
+    cancelChallenge,
+    updateSocialCount
 } from "../services/social";
 import { useToast } from "../context/ToastContext";
 import Modal from "../components/Modal";
@@ -42,7 +43,6 @@ function formatMinutes(mins) {
 
 export default function FriendsChallenges() {
     const { toast } = useToast();
-    const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState("friends"); // "friends" | "challenges"
     const [loading, setLoading] = useState(true);
@@ -58,7 +58,6 @@ export default function FriendsChallenges() {
     // Friend Profile modal
     const [activeFriendId, setActiveFriendId] = useState(null);
     const [friendProgress, setFriendProgress] = useState(null);
-    const [loadingProgress, setLoadingProgress] = useState(false);
 
     // Challenges state
     const [challengesData, setChallengesData] = useState({ active: [], pending: [], past: [] });
@@ -74,6 +73,64 @@ export default function FriendsChallenges() {
     // Challenge Detail modal
     const [activeChallenge, setActiveChallenge] = useState(null);
 
+    // Shift-themed In-app Confirmation Modal state
+    const [confirmDialog, setConfirmDialog] = useState(null);
+    const [isConfirmSubmitting, setIsConfirmSubmitting] = useState(false);
+
+    // Swipe navigation references
+    const tabContentRef = useRef(null);
+    const touchStateRef = useRef({ startX: 0, startY: 0, startTime: 0 });
+
+    const handleTabChange = useCallback((newTab) => {
+        if (newTab === activeTab) return;
+        const dir = newTab === "challenges" ? 1 : -1;
+        setActiveTab(newTab);
+
+        if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && tabContentRef.current) {
+            tabContentRef.current.animate(
+                [
+                    { transform: `translateX(${dir * 36}px)`, opacity: 0.4 },
+                    { transform: "translateX(0)", opacity: 1 }
+                ],
+                { duration: 220, easing: "cubic-bezier(0.16, 1, 0.3, 1)" }
+            );
+        }
+    }, [activeTab]);
+
+    const onTouchStart = (e) => {
+        if (addFriendOpen || activeFriendId || createChallengeOpen || activeChallenge || confirmDialog) {
+            return;
+        }
+        if (e.target.closest("button, a, input, select, textarea, [role='button'], .modal-backdrop")) {
+            return;
+        }
+        const t = e.touches[0];
+        touchStateRef.current = {
+            startX: t.clientX,
+            startY: t.clientY,
+            startTime: Date.now()
+        };
+    };
+
+    const onTouchEnd = (e) => {
+        if (addFriendOpen || activeFriendId || createChallengeOpen || activeChallenge || confirmDialog) {
+            return;
+        }
+        const t = e.changedTouches[0];
+        const dx = t.clientX - touchStateRef.current.startX;
+        const dy = t.clientY - touchStateRef.current.startY;
+        const dt = Date.now() - touchStateRef.current.startTime;
+
+        // Sensible threshold (> 50px, predominantly horizontal gesture, deliberate timing < 600ms)
+        if (dt < 600 && Math.abs(dx) >= 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+            if (dx < -50 && activeTab === "friends") {
+                handleTabChange("challenges");
+            } else if (dx > 50 && activeTab === "challenges") {
+                handleTabChange("friends");
+            }
+        }
+    };
+
     // Load all data
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -85,6 +142,13 @@ export default function FriendsChallenges() {
             ]);
             setFriendsData(friendsRes);
             setChallengesData(challengesRes);
+
+            // Synchronize global actionable pending notifications badge
+            const incoming = Array.isArray(friendsRes?.incoming) ? friendsRes.incoming.length : 0;
+            const pending = Array.isArray(challengesRes?.pending)
+                ? challengesRes.pending.filter((c) => !c.userIsCreator).length
+                : 0;
+            updateSocialCount(incoming + pending);
         } catch (err) {
             console.error("Failed to load friends/challenges data:", err);
             setError(true);
@@ -143,32 +207,37 @@ export default function FriendsChallenges() {
         }
     };
 
-    const handleRemoveFriend = async (friendId, name) => {
-        if (!window.confirm(`Remove ${name} from your friends?`)) return;
-        try {
-            await removeFriend(friendId);
-            toast("Friend removed", "info");
-            if (activeFriendId === friendId) {
-                setActiveFriendId(null);
-                setFriendProgress(null);
+    const handleRemoveFriend = (friendId, name) => {
+        setConfirmDialog({
+            title: "Remove Friend?",
+            text: `Are you sure you want to remove ${name} from your friends?`,
+            cancelLabel: "Cancel",
+            confirmLabel: "Remove Friend",
+            isDestructive: true,
+            onConfirm: async () => {
+                try {
+                    await removeFriend(friendId);
+                    toast("Friend removed", "info");
+                    if (activeFriendId === friendId) {
+                        setActiveFriendId(null);
+                        setFriendProgress(null);
+                    }
+                    await loadData();
+                } catch (err) {
+                    toast(err.message || "Failed to remove friend", "error");
+                }
             }
-            loadData();
-        } catch (err) {
-            toast(err.message || "Failed to remove friend", "error");
-        }
+        });
     };
 
     const handleOpenFriendProfile = async (friendId) => {
         setActiveFriendId(friendId);
-        setLoadingProgress(true);
         try {
             const data = await fetchFriendProgress(friendId);
             setFriendProgress(data);
         } catch (err) {
             toast(err.message || "Failed to load friend profile", "error");
             setActiveFriendId(null);
-        } finally {
-            setLoadingProgress(false);
         }
     };
 
@@ -224,22 +293,30 @@ export default function FriendsChallenges() {
     const handleRespondChallenge = async (challengeId, action) => {
         try {
             await respondChallenge(challengeId, action);
-            toast(action === "accept" ? "Challenge accepted! Game on ⚡" : "Challenge declined", "info");
+            toast(action === "accept" ? "Challenge accepted!" : "Challenge declined", "info");
             loadData();
         } catch (err) {
             toast(err.message || "Failed to update challenge", "error");
         }
     };
 
-    const handleCancelChallenge = async (challengeId) => {
-        if (!window.confirm("Cancel this challenge invitation?")) return;
-        try {
-            await cancelChallenge(challengeId);
-            toast("Challenge cancelled", "info");
-            loadData();
-        } catch (err) {
-            toast(err.message || "Failed to cancel challenge", "error");
-        }
+    const handleCancelChallenge = (challengeId) => {
+        setConfirmDialog({
+            title: "Cancel Challenge?",
+            text: "Are you sure you want to cancel this challenge?",
+            cancelLabel: "Keep Challenge",
+            confirmLabel: "Cancel Challenge",
+            isDestructive: true,
+            onConfirm: async () => {
+                try {
+                    await cancelChallenge(challengeId);
+                    toast("Challenge cancelled", "info");
+                    await loadData();
+                } catch (err) {
+                    toast(err.message || "Failed to cancel challenge", "error");
+                }
+            }
+        });
     };
 
     const friendSelectOptions = useMemo(() => {
@@ -275,7 +352,7 @@ export default function FriendsChallenges() {
                     role="tab"
                     aria-selected={activeTab === "friends"}
                     className={`social-tab ${activeTab === "friends" ? "active" : ""}`}
-                    onClick={() => setActiveTab("friends")}
+                    onClick={() => handleTabChange("friends")}
                 >
                     Friends ({friendsData.friends.length})
                     {incomingRequestsCount > 0 && (
@@ -286,7 +363,7 @@ export default function FriendsChallenges() {
                     role="tab"
                     aria-selected={activeTab === "challenges"}
                     className={`social-tab ${activeTab === "challenges" ? "active" : ""}`}
-                    onClick={() => setActiveTab("challenges")}
+                    onClick={() => handleTabChange("challenges")}
                 >
                     Challenges ({challengesData.active.length})
                     {pendingChallengesCount > 0 && (
@@ -299,9 +376,16 @@ export default function FriendsChallenges() {
                 <p className="message">Loading your circle...</p>
             ) : error ? (
                 <ErrorState onRetry={loadData} />
-            ) : activeTab === "friends" ? (
-                /* ================= FRIENDS TAB ================= */
-                <div className="friends-section">
+            ) : (
+                <div
+                    className="social-tab-viewport"
+                    ref={tabContentRef}
+                    onTouchStart={onTouchStart}
+                    onTouchEnd={onTouchEnd}
+                >
+                    {activeTab === "friends" ? (
+                        /* ================= FRIENDS TAB ================= */
+                        <div className="friends-section">
                     {/* Incoming requests */}
                     {incomingRequestsCount > 0 && (
                         <div className="social-alert-card">
@@ -454,7 +538,8 @@ export default function FriendsChallenges() {
                                         <div className="pending-challenge-actions">
                                             {c.userIsCreator ? (
                                                 <button
-                                                    className="secondary-button small"
+                                                    type="button"
+                                                    className="secondary-button small pending-action-btn"
                                                     onClick={() => handleCancelChallenge(c._id)}
                                                 >
                                                     Cancel
@@ -462,13 +547,15 @@ export default function FriendsChallenges() {
                                             ) : (
                                                 <>
                                                     <button
-                                                        className="primary-button small"
+                                                        type="button"
+                                                        className="primary-button small pending-action-btn"
                                                         onClick={() => handleRespondChallenge(c._id, "accept")}
                                                     >
-                                                        Accept ⚡
+                                                        Accept
                                                     </button>
                                                     <button
-                                                        className="secondary-button small"
+                                                        type="button"
+                                                        className="secondary-button small pending-action-btn"
                                                         onClick={() => handleRespondChallenge(c._id, "decline")}
                                                     >
                                                         Decline
@@ -623,6 +710,8 @@ export default function FriendsChallenges() {
                     )}
                 </div>
             )}
+        </div>
+    )}
 
             {/* ================= ADD FRIEND MODAL ================= */}
             <Modal
@@ -771,7 +860,7 @@ export default function FriendsChallenges() {
                                     handleOpenCreateChallenge(fid);
                                 }}
                             >
-                                Challenge {friendProgress.friend.name} ⚡
+                                Challenge {friendProgress.friend.name}
                             </button>
                         </div>
                     </div>
@@ -971,6 +1060,54 @@ export default function FriendsChallenges() {
                                 )}
                             </div>
                         )}
+                    </div>
+                )}
+            </Modal>
+
+            {/* ================= CONFIRMATION MODAL ================= */}
+            <Modal
+                open={Boolean(confirmDialog)}
+                onClose={() => {
+                    if (!isConfirmSubmitting) setConfirmDialog(null);
+                }}
+                variant="dialog"
+                labelledBy="confirm-modal-title"
+            >
+                {confirmDialog && (
+                    <div className="shift-confirm-modal">
+                        <h2 id="confirm-modal-title" className="modal-title">
+                            {confirmDialog.title}
+                        </h2>
+                        <p className="modal-text">
+                            {confirmDialog.text}
+                        </p>
+                        <div className="modal-actions">
+                            <button
+                                type="button"
+                                className="secondary-button"
+                                disabled={isConfirmSubmitting}
+                                onClick={() => setConfirmDialog(null)}
+                            >
+                                {confirmDialog.cancelLabel || "Cancel"}
+                            </button>
+                            <button
+                                type="button"
+                                className={confirmDialog.isDestructive ? "danger-button" : "primary-button"}
+                                disabled={isConfirmSubmitting}
+                                onClick={async () => {
+                                    if (isConfirmSubmitting) return;
+                                    setIsConfirmSubmitting(true);
+                                    try {
+                                        await confirmDialog.onConfirm();
+                                        setConfirmDialog(null);
+                                    } finally {
+                                        setIsConfirmSubmitting(false);
+                                    }
+                                }}
+                            >
+                                {isConfirmSubmitting ? "Processing..." : confirmDialog.confirmLabel}
+                            </button>
+                        </div>
                     </div>
                 )}
             </Modal>

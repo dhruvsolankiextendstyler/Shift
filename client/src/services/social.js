@@ -102,3 +102,50 @@ export async function cancelChallenge(id) {
     }
     return res.json();
 }
+
+// -------------------------------------------------------------
+// Actionable Pending Notifications Store & Subscriber Pattern
+// -------------------------------------------------------------
+const listeners = new Set();
+let cachedCount = 0;
+
+export function subscribeSocialCount(listener) {
+    listeners.add(listener);
+    listener(cachedCount);
+    return () => listeners.delete(listener);
+}
+
+export function updateSocialCount(count) {
+    const validCount = typeof count === "number" && !isNaN(count) ? Math.max(0, count) : 0;
+    if (cachedCount !== validCount) {
+        cachedCount = validCount;
+        listeners.forEach((fn) => {
+            try {
+                fn(cachedCount);
+            } catch (err) {
+                console.error("Error in social count listener:", err);
+            }
+        });
+    }
+}
+
+export async function refreshSocialCount() {
+    try {
+        const [friendsRes, challengesRes] = await Promise.all([
+            fetchFriends(),
+            fetchChallenges()
+        ]);
+        const incomingFriends = Array.isArray(friendsRes?.incoming)
+            ? friendsRes.incoming.length
+            : 0;
+        const pendingChallenges = Array.isArray(challengesRes?.pending)
+            ? challengesRes.pending.filter((c) => !c.userIsCreator).length
+            : 0;
+        const total = incomingFriends + pendingChallenges;
+        updateSocialCount(total);
+        return total;
+    } catch {
+        return cachedCount;
+    }
+}
+

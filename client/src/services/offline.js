@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { apiFetch } from "./api";
 
 const QUEUE_KEY = "shift_offline_queue";

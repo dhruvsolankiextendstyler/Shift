@@ -32,6 +32,7 @@ import DesktopCursor from "./components/DesktopCursor";
 import Footer from "./components/Footer";
 import ToolsMenu from "./components/ToolsMenu";
 import OfflineIndicator from "./components/OfflineIndicator";
+import { useSocialNotifications } from "./hooks/useSocialNotifications";
 
 function AppShell() {
     const { user, loading, logout: rawLogout } = useAuth();
@@ -207,6 +208,7 @@ function DesktopApp({ user, logout }) {
     const navigate = useNavigate();
     const [profileOpen, setProfileOpen] = useState(false);
     const profileRef = useRef(null);
+    const socialCount = useSocialNotifications(Boolean(user));
 
     useEffect(() => {
         if (!profileOpen) return;
@@ -243,8 +245,18 @@ function DesktopApp({ user, logout }) {
                         aria-expanded={profileOpen}
                         onClick={() => setProfileOpen((o) => !o)}
                     >
-                        <span className="desktop-avatar">
-                            {(user?.name || "?").charAt(0).toUpperCase()}
+                        <span className="profile-avatar-wrap">
+                            <span className="desktop-avatar">
+                                {(user?.name || "?").charAt(0).toUpperCase()}
+                            </span>
+                            {socialCount > 0 && (
+                                <span
+                                    className="profile-badge"
+                                    aria-label={`${socialCount} pending notification${socialCount === 1 ? "" : "s"}`}
+                                >
+                                    {socialCount > 9 ? "9+" : socialCount}
+                                </span>
+                            )}
                         </span>
                         <span className="nav-user-name">{user.name}</span>
                         <span className="profile-chevron">▾</span>
@@ -271,7 +283,12 @@ function DesktopApp({ user, logout }) {
                                         navigate("/friends");
                                     }}
                                 >
-                                    Friends & Challenges
+                                    <span>Friends & Challenges</span>
+                                    {socialCount > 0 && (
+                                        <span className="menu-notification-badge">
+                                            {socialCount > 9 ? "9+" : socialCount}
+                                        </span>
+                                    )}
                                 </button>
                                 <button
                                     className="profile-menu-item"

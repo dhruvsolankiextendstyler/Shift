@@ -103,7 +103,7 @@ export default function NumberReveal({
         <span
             ref={elRef}
             className={`number-reveal ${className}`}
-            style={{ display: "inline-block", willChange: "transform, opacity" }}
+            style={{ display: "inline-block" }}
         >
             {prefix}
             {display}

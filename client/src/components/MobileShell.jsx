@@ -12,6 +12,7 @@ import {
     INSIGHTS_TABS
 } from "../pages/Insights";
 import ErrorState from "./ErrorState";
+import { useSocialNotifications } from "../hooks/useSocialNotifications";
 
 // Flat swipe sequence: the 3 main sections, then Insights fanned out
 // into its 4 sub-tabs — so swiping carries straight through (nested).
@@ -86,6 +87,7 @@ function MobileShell({ user, logout }) {
     const profileRef = useRef(null);
     const viewportRef = useRef(null);
     const slideAnim = useRef(null);
+    const socialCount = useSocialNotifications(Boolean(user));
 
     useEffect(() => {
         pathRef.current = location.pathname;
@@ -428,15 +430,25 @@ function MobileShell({ user, logout }) {
             {/* Anchored to the shell, not the header: a backdrop-filter nested
                 under the header's own backdrop-filter blurs nothing. */}
             <div className="mobile-profile" ref={profileRef}>
-                <button
-                    className="mobile-avatar"
-                    aria-label="Account"
-                    aria-haspopup="true"
-                    aria-expanded={profileOpen}
-                    onClick={() => setProfileOpen((o) => !o)}
-                >
-                    {(user?.name || "?").charAt(0).toUpperCase()}
-                </button>
+                <div className="profile-avatar-wrap">
+                    <button
+                        className="mobile-avatar"
+                        aria-label="Account"
+                        aria-haspopup="true"
+                        aria-expanded={profileOpen}
+                        onClick={() => setProfileOpen((o) => !o)}
+                    >
+                        {(user?.name || "?").charAt(0).toUpperCase()}
+                    </button>
+                    {socialCount > 0 && (
+                        <span
+                            className="profile-badge"
+                            aria-label={`${socialCount} pending notification${socialCount === 1 ? "" : "s"}`}
+                        >
+                            {socialCount > 9 ? "9+" : socialCount}
+                        </span>
+                    )}
+                </div>
 
                 {profileOpen && (
                     <div className="profile-menu" role="menu">
@@ -464,7 +476,12 @@ function MobileShell({ user, logout }) {
                                     navigate("/friends");
                                 }}
                             >
-                                Friends & Challenges
+                                <span>Friends & Challenges</span>
+                                {socialCount > 0 && (
+                                    <span className="menu-notification-badge">
+                                        {socialCount > 9 ? "9+" : socialCount}
+                                    </span>
+                                )}
                             </button>
                             <button
                                 className="profile-menu-item"

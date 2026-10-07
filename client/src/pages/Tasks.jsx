@@ -3,11 +3,7 @@ import { apiFetch } from "../services/api";
 import { useToast } from "../context/ToastContext";
 import ErrorState from "../components/ErrorState";
 import Modal from "../components/Modal";
-import TaskFormFields, {
-    PRIORITY_OPTIONS,
-    EFFORT_OPTIONS,
-    TYPE_OPTIONS
-} from "../components/TaskFormFields";
+import TaskFormFields from "../components/TaskFormFields";
 import { useIsMobile } from "../hooks/useIsMobile";
 import Footer from "../components/Footer";
 

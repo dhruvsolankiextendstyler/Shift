@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { apiFetch } from "./api";
 import { isOnline, queueOfflineAction } from "./offline";
 
@@ -188,7 +188,7 @@ export async function saveItem({ type, itemId, title, content }) {
         } else {
             throw new Error("Failed to save");
         }
-    } catch (err) {
+    } catch {
         queueOfflineAction({
             endpoint: "/saved",
             method: "POST",
