@@ -425,7 +425,7 @@ export default function FriendsChallenges() {
                                             className="primary-button small"
                                             onClick={() => handleOpenCreateChallenge(user._id)}
                                         >
-                                            Challenge ⚡
+                                            Challenge
                                         </button>
                                     </div>
                                 </div>
@@ -830,7 +830,7 @@ export default function FriendsChallenges() {
                         </div>
                     )}
 
-                    <div className="form-row">
+                    <div className="form-row challenge-form-row">
                         <div className="input-group">
                             <label>
                                 {challengeType === "focus"
@@ -880,7 +880,7 @@ export default function FriendsChallenges() {
                             className="primary-button"
                             disabled={submittingChallenge}
                         >
-                            {submittingChallenge ? "Sending..." : "Send Challenge ⚡"}
+                            {submittingChallenge ? "Sending..." : "Send Challenge"}
                         </button>
                     </div>
                 </form>
