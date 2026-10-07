@@ -42,6 +42,8 @@ const actionRoutes = require("./routes/actionRoutes");
 const activityRoutes = require("./routes/activityRoutes");
 const statsRoutes = require("./routes/statsRoutes");
 const savedRoutes = require("./routes/savedRoutes");
+const friendRoutes = require("./routes/friendRoutes");
+const challengeRoutes = require("./routes/challengeRoutes");
 const authMiddleware = require("./middleware/authMiddleware");
 
 app.use("/api/auth", authRoutes);
@@ -55,6 +57,8 @@ app.use("/api/recommendation", authMiddleware, recommendationRoutes);
 app.use("/api/actions", authMiddleware, actionRoutes);
 app.use("/api/activity", authMiddleware, activityRoutes);
 app.use("/api/saved", authMiddleware, savedRoutes);
+app.use("/api/friends", authMiddleware, friendRoutes);
+app.use("/api/challenges", authMiddleware, challengeRoutes);
 
 app.get("/", (req, res) => {
     res.json({

@@ -461,6 +461,15 @@ function MobileShell({ user, logout }) {
                                 className="profile-menu-item"
                                 onClick={() => {
                                     setProfileOpen(false);
+                                    navigate("/friends");
+                                }}
+                            >
+                                Friends & Challenges
+                            </button>
+                            <button
+                                className="profile-menu-item"
+                                onClick={() => {
+                                    setProfileOpen(false);
                                     navigate("/saved");
                                 }}
                             >

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     BrowserRouter,
     Routes,
@@ -24,6 +24,7 @@ import Tasks from "./pages/Tasks";
 import History from "./pages/History";
 import Insights from "./pages/Insights";
 import Saved from "./pages/Saved";
+import FriendsChallenges from "./pages/FriendsChallenges";
 import MobileShell from "./components/MobileShell";
 import Modal from "./components/Modal";
 import TapDroplets from "./components/TapDroplets";
@@ -145,10 +146,10 @@ function AppShell() {
     );
 }
 
-const KNOWN_PATHS = ["/", "/tasks", "/history", "/insights", "/saved"];
+const KNOWN_PATHS = ["/", "/tasks", "/history", "/insights", "/saved", "/friends"];
 
 // Mobile: one persistent swipe shell for the known sections; anything
-// else falls through to a 404. /saved renders as a dedicated view with back button.
+// else falls through to a 404. /saved and /friends render as dedicated views with back button.
 function MobileApp({ user, logout }) {
     const location = useLocation();
 
@@ -177,6 +178,23 @@ function MobileApp({ user, logout }) {
         );
     }
 
+    if (location.pathname === "/friends") {
+        return (
+            <div className="app">
+                <header className="mobile-header">
+                    <Link to="/" className="mobile-header-link" aria-label="Back to Now">
+                        ← Now
+                    </Link>
+                    <span className="mobile-logo">SHIFT</span>
+                    <span className="mobile-header-spacer" />
+                </header>
+                <div className="mobile-page-wrap">
+                    <FriendsChallenges />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="app">
             <MobileShell user={user} logout={logout} />
@@ -184,8 +202,23 @@ function MobileApp({ user, logout }) {
     );
 }
 
-// Desktop: classic top-nav + routed content.
+// Desktop: classic top-nav + routed content + profile popover.
 function DesktopApp({ user, logout }) {
+    const navigate = useNavigate();
+    const [profileOpen, setProfileOpen] = useState(false);
+    const profileRef = useRef(null);
+
+    useEffect(() => {
+        if (!profileOpen) return;
+        const onPointerDown = (e) => {
+            if (profileRef.current && !profileRef.current.contains(e.target)) {
+                setProfileOpen(false);
+            }
+        };
+        window.addEventListener("pointerdown", onPointerDown);
+        return () => window.removeEventListener("pointerdown", onPointerDown);
+    }, [profileOpen]);
+
     return (
         <div className="app">
             <header className="navbar">
@@ -203,11 +236,64 @@ function DesktopApp({ user, logout }) {
                     <NavLink to="/saved">SAVED</NavLink>
                 </nav>
 
-                <div className="nav-user">
-                    <span className="nav-user-name">{user.name}</span>
-                    <button className="text-button" onClick={logout}>
-                        Log out
+                <div className="nav-user" ref={profileRef}>
+                    <button
+                        className="desktop-profile-btn"
+                        aria-label="Profile menu"
+                        aria-expanded={profileOpen}
+                        onClick={() => setProfileOpen((o) => !o)}
+                    >
+                        <span className="desktop-avatar">
+                            {(user?.name || "?").charAt(0).toUpperCase()}
+                        </span>
+                        <span className="nav-user-name">{user.name}</span>
+                        <span className="profile-chevron">▾</span>
                     </button>
+
+                    {profileOpen && (
+                        <div className="profile-menu desktop" role="menu">
+                            <div className="profile-head">
+                                <span className="profile-avatar">
+                                    {(user?.name || "?").charAt(0).toUpperCase()}
+                                </span>
+                                <div className="profile-id">
+                                    <p className="profile-name">{user?.name}</p>
+                                    <p className="profile-email" title={user?.email}>
+                                        {user?.email}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="profile-actions">
+                                <button
+                                    className="profile-menu-item"
+                                    onClick={() => {
+                                        setProfileOpen(false);
+                                        navigate("/friends");
+                                    }}
+                                >
+                                    Friends & Challenges
+                                </button>
+                                <button
+                                    className="profile-menu-item"
+                                    onClick={() => {
+                                        setProfileOpen(false);
+                                        navigate("/saved");
+                                    }}
+                                >
+                                    Saved items
+                                </button>
+                                <button
+                                    className="profile-logout"
+                                    onClick={() => {
+                                        setProfileOpen(false);
+                                        logout();
+                                    }}
+                                >
+                                    Log out
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </header>
 
@@ -218,6 +304,7 @@ function DesktopApp({ user, logout }) {
                     <Route path="/history" element={<History />} />
                     <Route path="/insights" element={<Insights />} />
                     <Route path="/saved" element={<Saved />} />
+                    <Route path="/friends" element={<FriendsChallenges />} />
                     <Route path="*" element={<NotFound />} />
                 </Routes>
             </main>
