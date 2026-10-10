@@ -17,6 +17,7 @@ import { useIsMobile } from "../hooks/useIsMobile";
 const flowCache = {
     category: "",
     time: "",
+    isPlus: false,
     isCustom: false,
     customMinutes: "",
     categories: null,
@@ -28,6 +29,7 @@ const flowCache = {
 function resetFlowCache() {
     flowCache.category = "";
     flowCache.time = "";
+    flowCache.isPlus = false;
     flowCache.isCustom = false;
     flowCache.customMinutes = "";
     flowCache.sessionId = "";
@@ -41,6 +43,7 @@ function Now({ active = true }) {
 
     const [category, setCategory] = useState(flowCache.category);
     const [time, setTime] = useState(flowCache.time);
+    const [isPlus, setIsPlus] = useState(flowCache.isPlus || false);
     const [isCustom, setIsCustom] = useState(flowCache.isCustom || false);
     const [customMinutes, setCustomMinutes] = useState(flowCache.customMinutes || "");
     const [customError, setCustomError] = useState("");
@@ -105,22 +108,25 @@ function Now({ active = true }) {
     useEffect(() => {
         flowCache.category = category;
         flowCache.time = time;
+        flowCache.isPlus = isPlus;
         flowCache.isCustom = isCustom;
         flowCache.customMinutes = customMinutes;
         flowCache.sessionId = sessionId;
         flowCache.recommendation = recommendation;
         flowCache.emptyReason = emptyReason;
-    }, [category, time, isCustom, customMinutes, sessionId, recommendation, emptyReason]);
+    }, [category, time, isPlus, isCustom, customMinutes, sessionId, recommendation, emptyReason]);
 
     const handlePresetTime = (preset) => {
         setIsCustom(false);
         setTime(preset);
+        setIsPlus(preset === 60);
         setCustomError("");
         if (message) setMessage("");
     };
 
     const handleSelectCustom = () => {
         setIsCustom(true);
+        setIsPlus(false);
         setCustomError("");
         if (message) setMessage("");
         if (customMinutes) {
@@ -138,6 +144,7 @@ function Now({ active = true }) {
     const handleCustomChange = (e) => {
         const valStr = e.target.value;
         setCustomMinutes(valStr);
+        setIsPlus(false);
         if (message) setMessage("");
 
         if (!valStr.trim()) {
@@ -204,7 +211,8 @@ function Now({ active = true }) {
                 method: "POST",
                 body: JSON.stringify({
                     category: selectedCategory,
-                    availableTime: effectiveTime
+                    availableTime: effectiveTime,
+                    isPlus: !isCustom && time === 60
                 })
             });
 
@@ -262,6 +270,7 @@ function Now({ active = true }) {
         resetFlowCache();
         setCategory("");
         setTime("");
+        setIsPlus(false);
         setIsCustom(false);
         setCustomMinutes("");
         setCustomError("");
@@ -434,15 +443,15 @@ function Now({ active = true }) {
                             <p className="message">
                                 {category && category !== "Surprise Me"
                                     ? `Nothing in "${category}" fits ${
-                                          time === 60
-                                              ? "an hour"
+                                          time === 60 && !isCustom
+                                              ? "an hour or more"
                                               : `${time} min`
-                                      } right now. Pick a longer window, or add a shorter task.`
+                                      } right now. Pick a different window, or add a task.`
                                     : `Nothing in your pool fits ${
-                                          time === 60
-                                              ? "an hour"
+                                          time === 60 && !isCustom
+                                              ? "an hour or more"
                                               : `${time} min`
-                                      } right now. Pick a longer window, or add a shorter task.`}
+                                      } right now. Pick a different window, or add a task.`}
                             </p>
                             <button
                                 className="secondary-button"

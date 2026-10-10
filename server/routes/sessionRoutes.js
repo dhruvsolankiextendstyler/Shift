@@ -27,6 +27,7 @@ router.post("/", async (req, res) => {
             mood: req.body.mood || null,
             energy: req.body.energy || null,
             availableTime: parsedTime,
+            isPlus: Boolean(req.body.isPlus),
             user: req.userId
         });
 

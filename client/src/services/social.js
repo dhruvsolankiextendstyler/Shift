@@ -107,6 +107,34 @@ export async function cancelChallenge(id) {
     return res.json();
 }
 
+export async function editChallenge(id, payload) {
+    const res = await apiFetch(`/challenges/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to edit challenge");
+    }
+    const result = await res.json();
+    refreshSocialCount();
+    return result;
+}
+
+export async function respondEditRequest(id, action) {
+    const res = await apiFetch(`/challenges/${id}/edit-request`, {
+        method: "PUT",
+        body: JSON.stringify({ action })
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to respond to edit request");
+    }
+    const result = await res.json();
+    refreshSocialCount();
+    return result;
+}
+
 // -------------------------------------------------------------
 // Actionable Pending Notifications Store & Subscriber Pattern
 // -------------------------------------------------------------
@@ -191,7 +219,10 @@ export async function refreshSocialCount() {
             const pendingChallenges = Array.isArray(challengesRes?.pending)
                 ? challengesRes.pending.filter((c) => !c.userIsCreator).length
                 : 0;
-            const total = incomingFriends + pendingChallenges;
+            const pendingEdits = Array.isArray(challengesRes?.active)
+                ? challengesRes.active.filter((c) => c.canRespondToEdit).length
+                : 0;
+            const total = incomingFriends + pendingChallenges + pendingEdits;
             updateSocialCount(total);
             return total;
         } catch {

@@ -30,6 +30,11 @@ const sessionSchema = new mongoose.Schema(
         availableTime: {
             type: Number,
             required: true
+        },
+
+        isPlus: {
+            type: Boolean,
+            default: false
         }
     },
     {

@@ -4,7 +4,10 @@ const Challenge = require("../models/Challenge");
 const Friendship = require("../models/Friendship");
 const {
     calculateChallengeParticipantProgress,
-    evaluateChallengeState
+    evaluateChallengeState,
+    validateChallengePayload,
+    applyChallengeDirectEdit,
+    resolveChallengeEditRequest
 } = require("../services/socialService");
 
 // Enrich a challenge with live progress, friend metadata, and remaining time
@@ -54,6 +57,13 @@ async function enrichChallenge(challengeDoc, currentUserId) {
         remainingLabel = c.status;
     }
 
+    const hasPendingEdit = c.status === "active" && c.editRequest?.status === "pending";
+    const editRequestedBy = c.editRequest?.requestedBy?.toString();
+    const isEditRequester = hasPendingEdit && editRequestedBy === currentUserId;
+    const canRespondToEdit = hasPendingEdit && editRequestedBy !== currentUserId && (
+        c.creator._id.toString() === currentUserId || c.participant._id.toString() === currentUserId
+    );
+
     return {
         ...c,
         userIsCreator: isCreator,
@@ -68,7 +78,10 @@ async function enrichChallenge(challengeDoc, currentUserId) {
         participantProgress,
         outcome: evaluation.outcome,
         remainingLabel,
-        remainingMs
+        remainingMs,
+        hasPendingEdit,
+        isEditRequester,
+        canRespondToEdit
     };
 }
 
@@ -127,7 +140,7 @@ router.get("/:id", async (req, res, next) => {
 // POST /api/challenges — Create a new 1-on-1 challenge with a friend
 router.post("/", async (req, res, next) => {
     try {
-        const { participantId, type, category, goal, durationDays, title } = req.body;
+        const { participantId } = req.body;
 
         if (!participantId) {
             return res.status(400).json({ error: "Friend/participant is required" });
@@ -150,46 +163,19 @@ router.post("/", async (req, res, next) => {
             return res.status(403).json({ error: "You can only challenge accepted friends" });
         }
 
-        // Validate type
-        const validTypes = ["task", "category", "focus", "consistency"];
-        if (!validTypes.includes(type)) {
-            return res.status(400).json({ error: `Invalid challenge type. Allowed: ${validTypes.join(", ")}` });
-        }
-
-        if (type === "category" && (!category || !category.trim())) {
-            return res.status(400).json({ error: "Category is required for category challenges" });
-        }
-
-        // Validate duration
-        const allowedDurations = [3, 7, 14];
-        const duration = Number(durationDays);
-        if (!allowedDurations.includes(duration)) {
-            return res.status(400).json({ error: "Supported durations: 3, 7, or 14 days" });
-        }
-
-        // Validate goal
-        const parsedGoal = Number(goal);
-        if (!parsedGoal || parsedGoal < 1) {
-            return res.status(400).json({ error: "Goal must be at least 1" });
-        }
-
-        // Default title generation if omitted
-        let challengeTitle = (title || "").trim();
-        if (!challengeTitle) {
-            if (type === "task") challengeTitle = `${parsedGoal} Moves Sprint`;
-            else if (type === "category") challengeTitle = `${category} Sprint`;
-            else if (type === "focus") challengeTitle = `${parsedGoal}m Focus Challenge`;
-            else if (type === "consistency") challengeTitle = `${duration}-Day Consistency`;
+        const validation = validateChallengePayload(req.body);
+        if (validation.error) {
+            return res.status(400).json({ error: validation.error });
         }
 
         const challenge = await Challenge.create({
             creator: req.userId,
             participant: participantId,
-            title: challengeTitle,
-            type,
-            category: type === "category" ? category.trim() : null,
-            goal: parsedGoal,
-            durationDays: duration,
+            title: validation.title,
+            type: validation.type,
+            category: validation.category,
+            goal: validation.goal,
+            durationDays: validation.durationDays,
             status: "pending"
         });
 
@@ -199,6 +185,145 @@ router.post("/", async (req, res, next) => {
 
         const enriched = await enrichChallenge(populated, req.userId);
         res.status(201).json(enriched);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// PUT /api/challenges/:id — Edit challenge
+// Case A: Pending challenge -> direct edit by creator
+// Case B: Active challenge -> creates edit request requiring other participant's approval
+router.put("/:id", async (req, res, next) => {
+    try {
+        const challenge = await Challenge.findById(req.params.id)
+            .populate("creator", "name email")
+            .populate("participant", "name email");
+
+        if (!challenge) {
+            return res.status(404).json({ error: "Challenge not found" });
+        }
+
+        const isCreator = challenge.creator._id.toString() === req.userId;
+        const isParticipant = challenge.participant._id.toString() === req.userId;
+
+        if (!isCreator && !isParticipant) {
+            return res.status(403).json({ error: "Not authorized to access this challenge" });
+        }
+
+        // Only creator can initiate edit
+        if (!isCreator) {
+            return res.status(403).json({ error: "Only the challenge creator can edit the challenge" });
+        }
+
+        // Do not allow editing cancelled, expired, or completed challenges
+        if (["cancelled", "expired", "declined", "completed"].includes(challenge.status)) {
+            return res.status(400).json({ error: `Cannot edit challenge with status "${challenge.status}"` });
+        }
+
+        if (challenge.status === "active" && challenge.endDate && new Date() > new Date(challenge.endDate)) {
+            challenge.status = "expired";
+            await challenge.save();
+            return res.status(400).json({ error: "Cannot edit challenge that has expired" });
+        }
+
+        const validation = validateChallengePayload(req.body);
+        if (validation.error) {
+            return res.status(400).json({ error: validation.error });
+        }
+
+        // Case A: Challenge sent but not yet accepted
+        if (challenge.status === "pending") {
+            applyChallengeDirectEdit(challenge, validation);
+            await challenge.save();
+
+            const enriched = await enrichChallenge(challenge, req.userId);
+            return res.json(enriched);
+        }
+
+        // Case B: Challenge already accepted
+        if (challenge.status === "active") {
+            // Check for existing pending edit request
+            if (challenge.editRequest && challenge.editRequest.status === "pending") {
+                return res.status(400).json({
+                    error: "An edit request is already pending approval for this challenge"
+                });
+            }
+
+            challenge.editRequest = {
+                status: "pending",
+                requestedBy: req.userId,
+                title: validation.title,
+                type: validation.type,
+                category: validation.category,
+                goal: validation.goal,
+                durationDays: validation.durationDays,
+                createdAt: new Date()
+            };
+
+            await challenge.save();
+
+            const enriched = await enrichChallenge(challenge, req.userId);
+            return res.json(enriched);
+        }
+
+        return res.status(400).json({ error: "Invalid challenge state for editing" });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// PUT /api/challenges/:id/edit-request — Accept or decline proposed challenge edits
+router.put("/:id/edit-request", async (req, res, next) => {
+    try {
+        const { action } = req.body;
+        if (!["accept", "decline"].includes(action)) {
+            return res.status(400).json({ error: "Action must be 'accept' or 'decline'" });
+        }
+
+        const challenge = await Challenge.findById(req.params.id)
+            .populate("creator", "name email")
+            .populate("participant", "name email");
+
+        if (!challenge) {
+            return res.status(404).json({ error: "Challenge not found" });
+        }
+
+        if (challenge.status !== "active") {
+            return res.status(400).json({ error: `Cannot respond to edit request: challenge is ${challenge.status}` });
+        }
+
+        if (challenge.endDate && new Date() > new Date(challenge.endDate)) {
+            challenge.status = "expired";
+            if (challenge.editRequest) {
+                challenge.editRequest.status = "expired";
+            }
+            await challenge.save();
+            return res.status(400).json({ error: "Challenge has expired while the edit request was pending" });
+        }
+
+        if (!challenge.editRequest || challenge.editRequest.status !== "pending") {
+            return res.status(404).json({ error: "No pending edit request found for this challenge" });
+        }
+
+        // Creator must not approve their own request
+        if (challenge.editRequest.requestedBy.toString() === req.userId) {
+            return res.status(403).json({ error: "The creator cannot approve or decline their own edit request" });
+        }
+
+        // Only the other participant can respond
+        const otherParticipantId = challenge.creator._id.toString() === challenge.editRequest.requestedBy.toString()
+            ? challenge.participant._id.toString()
+            : challenge.creator._id.toString();
+
+        if (req.userId !== otherParticipantId) {
+            return res.status(403).json({ error: "Only the recipient can review this edit request" });
+        }
+
+        resolveChallengeEditRequest(challenge, action);
+        await challenge.save();
+
+        const enriched = await enrichChallenge(challenge, req.userId);
+        res.json(enriched);
     } catch (err) {
         next(err);
     }
@@ -268,3 +393,4 @@ router.delete("/:id", async (req, res, next) => {
 });
 
 module.exports = router;
+

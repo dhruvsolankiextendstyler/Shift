@@ -236,3 +236,57 @@ test("recommendTask provides a grounded whyThis explanation", () => {
         `whyThis must be grounded in real signals: ${result.whyThis}`
     );
 });
+
+// ---- 1 hr+ (isPlus) filtering and recommendation -----------------------
+
+test("1 hr+ selection (isPlus: true) makes 60, 90, and 120-minute tasks eligible", () => {
+    const task60 = makeTask({ estimatedTime: 60, title: "1-hour deep work" });
+    const task90 = makeTask({ estimatedTime: 90, title: "1.5-hour workshop" });
+    const task120 = makeTask({ estimatedTime: 120, title: "2-hour study session", priority: "high" });
+    const task30 = makeTask({ estimatedTime: 30, title: "Short 30m task", priority: "high" });
+
+    const sess = { mood: "good", energy: "high", availableTime: 60, isPlus: true };
+
+    const picked = recommendTask([task30, task60, task90, task120], sess);
+    assert.ok(picked, "Must recommend an eligible task");
+    assert.ok(
+        [60, 90, 120].includes(picked.estimatedTime),
+        `Picked task estimatedTime must be >= 60, got ${picked.estimatedTime}`
+    );
+    assert.equal(picked.title, "2-hour study session");
+    assert.ok(picked.whyThis.includes("1 hr+ window"), "whyThis must reference 1 hr+ window");
+});
+
+test("a 120-minute task is eligible and recommended when 1 hr+ is selected", () => {
+    const task120 = makeTask({ estimatedTime: 120, title: "2-hour masterclass" });
+    const sess = { mood: "okay", energy: "medium", availableTime: 60, isPlus: true };
+
+    const picked = recommendTask([task120], sess);
+    assert.ok(picked, "120-minute task must be eligible for 1 hr+");
+    assert.equal(picked.title, "2-hour masterclass");
+});
+
+test("tasks shorter than 60 minutes are excluded when 1 hr+ is selected", () => {
+    const task15 = makeTask({ estimatedTime: 15, title: "Quick 15m review" });
+    const task30 = makeTask({ estimatedTime: 30, title: "30m task" });
+    const task45 = makeTask({ estimatedTime: 45, title: "45m task" });
+    const sess = { mood: "good", energy: "high", availableTime: 60, isPlus: true };
+
+    const picked = recommendTask([task15, task30, task45], sess);
+    assert.equal(picked, null, "Tasks < 60 min must not be recommended when 1 hr+ is selected");
+});
+
+test("standard 5, 15, and 30-minute options continue excluding longer tasks", () => {
+    const shortTask = makeTask({ estimatedTime: 15, title: "15m task" });
+    const longTask = makeTask({ estimatedTime: 60, title: "60m task" });
+    const veryLongTask = makeTask({ estimatedTime: 120, title: "120m task" });
+
+    const sess15 = { mood: "okay", energy: "medium", availableTime: 15, isPlus: false };
+    const picked15 = recommendTask([longTask, veryLongTask, shortTask], sess15);
+    assert.equal(picked15.title, "15m task");
+
+    const sess30 = { mood: "okay", energy: "medium", availableTime: 30, isPlus: false };
+    const picked30 = recommendTask([longTask, veryLongTask], sess30);
+    assert.equal(picked30, null, "Tasks > 30m excluded when availableTime is 30");
+});
+

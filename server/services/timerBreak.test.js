@@ -12,6 +12,11 @@ function calculateRemainingFocusSession(activeSeconds) {
     return Math.max(0, FOCUS_SESSION_SECONDS - Math.max(0, activeSeconds));
 }
 
+function calculateRemainingTaskSeconds(taskMinutes, activeSeconds) {
+    const total = Math.max(0, (taskMinutes || 0) * 60);
+    return Math.max(0, total - Math.max(0, activeSeconds));
+}
+
 function isNotThisEligible(activeSeconds) {
     return (activeSeconds || 0) < NOT_THIS_WINDOW_SECONDS;
 }
@@ -223,5 +228,36 @@ describe("Focused Task Timer — 5-Minute Break System", () => {
         // Active work > 15s -> disabled
         assert.equal(isNotThisEligible(30), false);
         assert.equal(calculateRemainingNotThisSeconds(30), 0);
+    });
+
+    it("displays actual selected task duration and keeps 5-minute focus session separate", () => {
+        // 30-minute task
+        assert.equal(calculateRemainingTaskSeconds(30, 0), 1800);
+        assert.equal(formatTimeMMSS(calculateRemainingTaskSeconds(30, 0)), "30:00");
+        assert.equal(calculateRemainingTaskSeconds(30, 60), 1740);
+        assert.equal(formatTimeMMSS(calculateRemainingTaskSeconds(30, 60)), "29:00");
+
+        // 90-minute task
+        assert.equal(calculateRemainingTaskSeconds(90, 0), 5400);
+        assert.equal(formatTimeMMSS(calculateRemainingTaskSeconds(90, 0)), "90:00");
+        assert.equal(calculateRemainingTaskSeconds(90, 1800), 3600);
+        assert.equal(formatTimeMMSS(calculateRemainingTaskSeconds(90, 1800)), "60:00");
+
+        // Custom duration (e.g. 42 minutes)
+        assert.equal(calculateRemainingTaskSeconds(42, 0), 2520);
+        assert.equal(formatTimeMMSS(calculateRemainingTaskSeconds(42, 0)), "42:00");
+
+        // Overtime caps at 0
+        assert.equal(calculateRemainingTaskSeconds(30, 2000), 0);
+        assert.equal(formatTimeMMSS(calculateRemainingTaskSeconds(30, 2000)), "0:00");
+
+        // Separate 5-minute focus session timer tracks independently
+        assert.equal(calculateRemainingFocusSession(0), 300);
+        assert.equal(formatTimeMMSS(calculateRemainingFocusSession(0)), "5:00");
+        // At 300s of active work, 5-minute session is 0:00, but 90-minute task still has 85:00 left!
+        assert.equal(calculateRemainingFocusSession(300), 0);
+        assert.equal(formatTimeMMSS(calculateRemainingFocusSession(300)), "0:00");
+        assert.equal(calculateRemainingTaskSeconds(90, 300), 5100);
+        assert.equal(formatTimeMMSS(calculateRemainingTaskSeconds(90, 300)), "85:00");
     });
 });

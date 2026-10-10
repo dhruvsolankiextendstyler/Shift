@@ -204,9 +204,82 @@ function evaluateChallengeState(challenge, creatorProgress, participantProgress)
     return { status: "active", outcome: null };
 }
 
+function validateChallengePayload({ type, category, goal, durationDays, title }) {
+    const validTypes = ["task", "category", "focus", "consistency"];
+    if (!validTypes.includes(type)) {
+        return { error: `Invalid challenge type. Allowed: ${validTypes.join(", ")}` };
+    }
+
+    if (type === "category" && (!category || !category.trim())) {
+        return { error: "Category is required for category challenges" };
+    }
+
+    const allowedDurations = [3, 7, 14];
+    const duration = Number(durationDays);
+    if (!allowedDurations.includes(duration)) {
+        return { error: "Supported durations: 3, 7, or 14 days" };
+    }
+
+    const parsedGoal = Number(goal);
+    if (!parsedGoal || parsedGoal < 1) {
+        return { error: "Goal must be at least 1" };
+    }
+
+    let challengeTitle = (title || "").trim();
+    if (!challengeTitle) {
+        if (type === "task") challengeTitle = `${parsedGoal} Moves Sprint`;
+        else if (type === "category") challengeTitle = `${category.trim()} Sprint`;
+        else if (type === "focus") challengeTitle = `${parsedGoal}m Focus Challenge`;
+        else if (type === "consistency") challengeTitle = `${duration}-Day Consistency`;
+    }
+
+    return {
+        type,
+        category: type === "category" ? category.trim() : null,
+        durationDays: duration,
+        goal: parsedGoal,
+        title: challengeTitle
+    };
+}
+
+function applyChallengeDirectEdit(challenge, validatedPayload) {
+    challenge.title = validatedPayload.title;
+    challenge.type = validatedPayload.type;
+    challenge.category = validatedPayload.category;
+    challenge.goal = validatedPayload.goal;
+    challenge.durationDays = validatedPayload.durationDays;
+    return challenge;
+}
+
+function resolveChallengeEditRequest(challenge, action) {
+    if (action === "accept") {
+        challenge.title = challenge.editRequest.title;
+        challenge.type = challenge.editRequest.type;
+        challenge.category = challenge.editRequest.category;
+        challenge.goal = challenge.editRequest.goal;
+
+        if (challenge.durationDays !== challenge.editRequest.durationDays) {
+            challenge.durationDays = challenge.editRequest.durationDays;
+            if (challenge.startDate) {
+                challenge.endDate = new Date(
+                    new Date(challenge.startDate).getTime() +
+                    challenge.durationDays * 24 * 60 * 60 * 1000
+                );
+            }
+        }
+        challenge.editRequest.status = "accepted";
+    } else {
+        challenge.editRequest.status = "declined";
+    }
+    return challenge;
+}
+
 module.exports = {
     dayKey,
     getWeeklyStatsForUser,
     calculateChallengeParticipantProgress,
-    evaluateChallengeState
+    evaluateChallengeState,
+    validateChallengePayload,
+    applyChallengeDirectEdit,
+    resolveChallengeEditRequest
 };

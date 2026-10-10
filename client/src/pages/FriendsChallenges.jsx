@@ -11,6 +11,8 @@ import {
     createChallenge,
     respondChallenge,
     cancelChallenge,
+    editChallenge,
+    respondEditRequest,
     updateSocialCount
 } from "../services/social";
 import { useToast } from "../context/ToastContext";
@@ -75,6 +77,7 @@ export default function FriendsChallenges() {
     // Challenges state
     const [challengesData, setChallengesData] = useState(() => cachedChallengesData || { active: [], pending: [], past: [] });
     const [createChallengeOpen, setCreateChallengeOpen] = useState(false);
+    const [editingChallenge, setEditingChallenge] = useState(null);
     const [selectedFriendForChallenge, setSelectedFriendForChallenge] = useState("");
     const [challengeType, setChallengeType] = useState("task");
     const [challengeCategory, setChallengeCategory] = useState("");
@@ -269,12 +272,24 @@ export default function FriendsChallenges() {
 
     // Challenge actions
     const handleOpenCreateChallenge = (preselectedFriendId = "") => {
+        setEditingChallenge(null);
         setSelectedFriendForChallenge(preselectedFriendId || friendsData.friends[0]?.user?._id || "");
         setChallengeType("task");
         setChallengeCategory("");
         setChallengeGoal(10);
         setChallengeDuration(7);
         setChallengeTitle("");
+        setCreateChallengeOpen(true);
+    };
+
+    const handleOpenEditChallenge = (challenge) => {
+        setEditingChallenge(challenge);
+        setSelectedFriendForChallenge(challenge.friendUser._id);
+        setChallengeType(challenge.type);
+        setChallengeCategory(challenge.category || "");
+        setChallengeGoal(challenge.goal);
+        setChallengeDuration(challenge.durationDays);
+        setChallengeTitle(challenge.title);
         setCreateChallengeOpen(true);
     };
 
@@ -298,6 +313,26 @@ export default function FriendsChallenges() {
 
         setSubmittingChallenge(true);
         try {
+            if (editingChallenge) {
+                await editChallenge(editingChallenge._id, {
+                    type: challengeType,
+                    category: challengeType === "category" ? challengeCategory.trim() : null,
+                    goal: goalNum,
+                    durationDays: Number(challengeDuration),
+                    title: challengeTitle.trim() || undefined
+                });
+                toast(
+                    editingChallenge.status === "active"
+                        ? "Proposed changes submitted for friend's approval!"
+                        : "Challenge updated successfully!",
+                    "success"
+                );
+                setCreateChallengeOpen(false);
+                setEditingChallenge(null);
+                loadData();
+                return;
+            }
+
             await createChallenge({
                 participantId: selectedFriendForChallenge,
                 type: challengeType,
@@ -310,7 +345,7 @@ export default function FriendsChallenges() {
             setCreateChallengeOpen(false);
             loadData();
         } catch (err) {
-            toast(err.message || "Failed to create challenge", "error");
+            toast(err.message || "Failed to save challenge", "error");
         } finally {
             setSubmittingChallenge(false);
         }
@@ -323,6 +358,24 @@ export default function FriendsChallenges() {
             loadData();
         } catch (err) {
             toast(err.message || "Failed to update challenge", "error");
+        }
+    };
+
+    const handleRespondEditRequest = async (challengeId, action) => {
+        try {
+            await respondEditRequest(challengeId, action);
+            toast(
+                action === "accept"
+                    ? "Proposed changes accepted!"
+                    : "Proposed changes declined",
+                "info"
+            );
+            loadData();
+            if (activeChallenge && activeChallenge._id === challengeId) {
+                setActiveChallenge(null);
+            }
+        } catch (err) {
+            toast(err.message || "Failed to respond to edit request", "error");
         }
     };
 
@@ -563,13 +616,22 @@ export default function FriendsChallenges() {
                                         </div>
                                         <div className="pending-challenge-actions">
                                             {c.userIsCreator ? (
-                                                <button
-                                                    type="button"
-                                                    className="secondary-button small pending-action-btn"
-                                                    onClick={() => handleCancelChallenge(c._id)}
-                                                >
-                                                    Cancel
-                                                </button>
+                                                <div className="pending-creator-actions">
+                                                    <button
+                                                        type="button"
+                                                        className="secondary-button small pending-action-btn"
+                                                        onClick={() => handleOpenEditChallenge(c)}
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="secondary-button small pending-action-btn"
+                                                        onClick={() => handleCancelChallenge(c._id)}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
                                             ) : (
                                                 <>
                                                     <button
@@ -655,6 +717,14 @@ export default function FriendsChallenges() {
                                             </div>
                                             <span className="remaining-badge">{c.remainingLabel}</span>
                                         </div>
+
+                                        {c.hasPendingEdit && (
+                                            <div className={`challenge-edit-badge ${c.canRespondToEdit ? "review-required" : "pending-approval"}`}>
+                                                {c.canRespondToEdit
+                                                    ? `⚡ ${c.friendUser.name} proposed changes · Review required`
+                                                    : `Changes proposed · Awaiting ${c.friendUser.name}'s review`}
+                                            </div>
+                                        )}
 
                                         <p className="challenge-goal-desc">
                                             Goal: {c.type === "focus" ? formatMinutes(c.goal) : `${c.goal} ${c.type === "consistency" ? "active days" : "completed moves"}`}
@@ -893,35 +963,65 @@ export default function FriendsChallenges() {
                 )}
             </Modal>
 
-            {/* ================= CREATE CHALLENGE MODAL ================= */}
+            {/* ================= CREATE / EDIT CHALLENGE MODAL ================= */}
             <Modal
                 open={createChallengeOpen}
-                onClose={() => setCreateChallengeOpen(false)}
+                onClose={() => {
+                    setCreateChallengeOpen(false);
+                    setEditingChallenge(null);
+                }}
                 variant="dialog"
                 labelledBy="create-challenge-title"
             >
                 <form className="create-challenge-modal" onSubmit={handleCreateChallenge}>
                     <div className="modal-header">
                         <div>
-                            <p className="eyebrow">✦ CHALLENGE A FRIEND</p>
-                            <h2 id="create-challenge-title">New 1-on-1 Challenge</h2>
+                            <p className="eyebrow">
+                                {editingChallenge
+                                    ? "✦ MODIFY CHALLENGE"
+                                    : "✦ CHALLENGE A FRIEND"}
+                            </p>
+                            <h2 id="create-challenge-title">
+                                {editingChallenge
+                                    ? (editingChallenge.status === "active"
+                                        ? "Propose Challenge Changes"
+                                        : "Edit Pending Challenge")
+                                    : "New 1-on-1 Challenge"}
+                            </h2>
                         </div>
                         <button
                             type="button"
                             className="text-button"
-                            onClick={() => setCreateChallengeOpen(false)}
+                            onClick={() => {
+                                setCreateChallengeOpen(false);
+                                setEditingChallenge(null);
+                            }}
                         >
                             ✕
                         </button>
                     </div>
 
+                    {editingChallenge && editingChallenge.status === "active" && (
+                        <p className="edit-active-notice">
+                            Your friend must approve these proposed changes before they take effect. Current progress will be preserved.
+                        </p>
+                    )}
+
                     <div className="input-group">
-                        <label>Choose Friend</label>
-                        <Select
-                            value={selectedFriendForChallenge}
-                            onChange={setSelectedFriendForChallenge}
-                            options={friendSelectOptions}
-                        />
+                        <label>Friend</label>
+                        {editingChallenge ? (
+                            <input
+                                value={editingChallenge.friendUser.name}
+                                disabled
+                                className="disabled-input"
+                            />
+                        ) : (
+                            <Select
+                                value={selectedFriendForChallenge}
+                                onChange={setSelectedFriendForChallenge}
+                                options={friendSelectOptions}
+                            />
+                        )}
                     </div>
 
                     <div className="input-group">
@@ -986,7 +1086,10 @@ export default function FriendsChallenges() {
                         <button
                             type="button"
                             className="secondary-button"
-                            onClick={() => setCreateChallengeOpen(false)}
+                            onClick={() => {
+                                setCreateChallengeOpen(false);
+                                setEditingChallenge(null);
+                            }}
                         >
                             Cancel
                         </button>
@@ -995,7 +1098,13 @@ export default function FriendsChallenges() {
                             className="primary-button"
                             disabled={submittingChallenge}
                         >
-                            {submittingChallenge ? "Sending..." : "Send Challenge"}
+                            {submittingChallenge
+                                ? "Saving..."
+                                : editingChallenge
+                                ? (editingChallenge.status === "active"
+                                    ? "Propose Changes"
+                                    : "Save Changes")
+                                : "Send Challenge"}
                         </button>
                     </div>
                 </form>
@@ -1084,6 +1193,108 @@ export default function FriendsChallenges() {
                                 {activeChallenge.endDate && (
                                     <span>Ends: {new Date(activeChallenge.endDate).toLocaleDateString()}</span>
                                 )}
+                            </div>
+                        )}
+
+                        {/* Proposed edits review / status box */}
+                        {activeChallenge.hasPendingEdit && activeChallenge.editRequest && (
+                            <div className={`proposed-changes-box ${activeChallenge.canRespondToEdit ? "recipient" : "requester"}`}>
+                                <div className="proposed-header">
+                                    <strong>
+                                        {activeChallenge.canRespondToEdit
+                                            ? `Proposed Changes from ${activeChallenge.friendUser.name}`
+                                            : "Pending Edit Request"}
+                                    </strong>
+                                    <span className="proposed-status-badge">
+                                        {activeChallenge.canRespondToEdit
+                                            ? "Requires Your Approval"
+                                            : `Awaiting ${activeChallenge.friendUser.name}'s Approval`}
+                                    </span>
+                                </div>
+                                <p className="proposed-sub">
+                                    {activeChallenge.canRespondToEdit
+                                        ? "Review the proposed changes below. Original challenge progress is preserved."
+                                        : "The original challenge remains active while your friend reviews these proposed changes."}
+                                </p>
+
+                                <div className="proposed-diff-grid">
+                                    {activeChallenge.title !== activeChallenge.editRequest.title && (
+                                        <div className="diff-row">
+                                            <span className="diff-label">Name</span>
+                                            <span className="diff-current">{activeChallenge.title}</span>
+                                            <span className="diff-arrow">→</span>
+                                            <span className="diff-proposed">{activeChallenge.editRequest.title}</span>
+                                        </div>
+                                    )}
+                                    {activeChallenge.type !== activeChallenge.editRequest.type && (
+                                        <div className="diff-row">
+                                            <span className="diff-label">Type</span>
+                                            <span className="diff-current">{activeChallenge.type}</span>
+                                            <span className="diff-arrow">→</span>
+                                            <span className="diff-proposed">{activeChallenge.editRequest.type}</span>
+                                        </div>
+                                    )}
+                                    {activeChallenge.category !== activeChallenge.editRequest.category && (
+                                        <div className="diff-row">
+                                            <span className="diff-label">Category</span>
+                                            <span className="diff-current">{activeChallenge.category || "None"}</span>
+                                            <span className="diff-arrow">→</span>
+                                            <span className="diff-proposed">{activeChallenge.editRequest.category || "None"}</span>
+                                        </div>
+                                    )}
+                                    {activeChallenge.goal !== activeChallenge.editRequest.goal && (
+                                        <div className="diff-row">
+                                            <span className="diff-label">Goal</span>
+                                            <span className="diff-current">{activeChallenge.goal}</span>
+                                            <span className="diff-arrow">→</span>
+                                            <span className="diff-proposed">{activeChallenge.editRequest.goal}</span>
+                                        </div>
+                                    )}
+                                    {activeChallenge.durationDays !== activeChallenge.editRequest.durationDays && (
+                                        <div className="diff-row">
+                                            <span className="diff-label">Duration</span>
+                                            <span className="diff-current">{activeChallenge.durationDays}d</span>
+                                            <span className="diff-arrow">→</span>
+                                            <span className="diff-proposed">{activeChallenge.editRequest.durationDays}d</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {activeChallenge.canRespondToEdit && (
+                                    <div className="proposed-actions-row">
+                                        <button
+                                            type="button"
+                                            className="primary-button small"
+                                            onClick={() => handleRespondEditRequest(activeChallenge._id, "accept")}
+                                        >
+                                            Accept Proposed Changes
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="secondary-button small"
+                                            onClick={() => handleRespondEditRequest(activeChallenge._id, "decline")}
+                                        >
+                                            Decline
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Action footer for active challenges */}
+                        {activeChallenge.status === "active" && !activeChallenge.hasPendingEdit && activeChallenge.userIsCreator && (
+                            <div className="challenge-detail-actions-bar">
+                                <button
+                                    type="button"
+                                    className="secondary-button small"
+                                    onClick={() => {
+                                        const chal = activeChallenge;
+                                        setActiveChallenge(null);
+                                        handleOpenEditChallenge(chal);
+                                    }}
+                                >
+                                    ✎ Edit Challenge
+                                </button>
                             </div>
                         )}
                     </div>

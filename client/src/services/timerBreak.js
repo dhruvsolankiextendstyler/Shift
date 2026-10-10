@@ -19,6 +19,11 @@ export function calculateRemainingFocusSession(activeSeconds) {
     return Math.max(0, FOCUS_SESSION_SECONDS - Math.max(0, activeSeconds));
 }
 
+export function calculateRemainingTaskSeconds(taskMinutes, activeSeconds) {
+    const total = Math.max(0, (taskMinutes || 0) * 60);
+    return Math.max(0, total - Math.max(0, activeSeconds));
+}
+
 export function isNotThisEligible(activeSeconds) {
     return (activeSeconds || 0) < NOT_THIS_WINDOW_SECONDS;
 }

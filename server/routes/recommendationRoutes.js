@@ -101,10 +101,11 @@ router.post("/", async (req, res) => {
             // ("nothing fits your 15 min"). Never silently stretch the window.
             return res.status(404).json({
                 error: tasks.length
-                    ? "No task fits your time window"
+                    ? (session.isPlus ? "No task fits your 1 hr+ window" : "No task fits your time window")
                     : "No active tasks available",
                 reason: tasks.length ? "no-fit" : "empty",
                 availableTime: session.availableTime,
+                isPlus: Boolean(session.isPlus),
                 category: session.category || null
             });
         }

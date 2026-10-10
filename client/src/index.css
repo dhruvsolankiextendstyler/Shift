@@ -5257,6 +5257,78 @@ select:focus-visible {
     color: var(--viz-blue);
 }
 
+/* 5-Minute Focus Session Companion Widget */
+.focus-companion-card {
+    margin: var(--space-3) auto var(--space-4);
+    max-width: 360px;
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+    transition: all var(--dur-normal) var(--ease-out);
+}
+
+.focus-companion-card.completed {
+    border-color: rgba(63, 194, 63, 0.4);
+    background: rgba(63, 194, 63, 0.06);
+}
+
+.companion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--text-xs);
+}
+
+.companion-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+.companion-time {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--viz-blue);
+}
+
+.focus-companion-card.completed .companion-time {
+    color: var(--good-text, #3fc23f);
+}
+
+.companion-bar-track {
+    width: 100%;
+    height: 4px;
+    background: var(--viz-track);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.companion-bar-fill {
+    height: 100%;
+    background: var(--viz-blue);
+    border-radius: 999px;
+    transition: width 0.5s ease;
+}
+
+.focus-companion-card.completed .companion-bar-fill {
+    background: var(--good-text, #3fc23f);
+}
+
+.companion-hint {
+    margin: 0;
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
 .break-offer-card {
     margin: var(--space-3) auto var(--space-4);
     max-width: 380px;
@@ -6800,6 +6872,161 @@ select:focus-visible {
         height: 38px;
     }
 }
+
+/* ============================================================
+   Challenge Editing & Approval Flow Styles
+   ============================================================ */
+
+.pending-creator-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.challenge-edit-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-2);
+    display: inline-flex;
+    align-items: center;
+}
+
+.challenge-edit-badge.review-required {
+    background: rgba(57, 135, 229, 0.15);
+    border: 1px solid rgba(57, 135, 229, 0.4);
+    color: #8ec3ff;
+}
+
+.challenge-edit-badge.pending-approval {
+    background: rgba(220, 160, 40, 0.12);
+    border: 1px solid rgba(220, 160, 40, 0.3);
+    color: var(--accent);
+}
+
+.edit-active-notice {
+    font-size: var(--text-xs);
+    color: #8ec3ff;
+    background: rgba(57, 135, 229, 0.08);
+    border: 1px solid rgba(57, 135, 229, 0.28);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    margin: 0 0 var(--space-3);
+    line-height: 1.4;
+}
+
+.disabled-input {
+    opacity: 0.7;
+    cursor: not-allowed;
+    background: var(--surface) !important;
+}
+
+.proposed-changes-box {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-top: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.proposed-changes-box.recipient {
+    border-color: rgba(57, 135, 229, 0.4);
+    background: rgba(57, 135, 229, 0.06);
+}
+
+.proposed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.proposed-header strong {
+    font-size: var(--text-sm);
+    color: var(--text);
+}
+
+.proposed-status-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(57, 135, 229, 0.2);
+    color: #8ec3ff;
+    border: 1px solid rgba(57, 135, 229, 0.35);
+}
+
+.proposed-changes-box.requester .proposed-status-badge {
+    background: rgba(220, 160, 40, 0.15);
+    color: var(--accent);
+    border-color: rgba(220, 160, 40, 0.3);
+}
+
+.proposed-sub {
+    margin: 0;
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+    line-height: 1.4;
+}
+
+.proposed-diff-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+
+.diff-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--text-xs);
+}
+
+.diff-label {
+    font-weight: 600;
+    color: var(--text-dim);
+    min-width: 60px;
+}
+
+.diff-current {
+    color: var(--text-dim);
+    text-decoration: line-through;
+}
+
+.diff-arrow {
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+.diff-proposed {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.proposed-actions-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.challenge-detail-actions-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: var(--space-3);
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-3);
+}
+
 
 
 

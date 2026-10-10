@@ -20,6 +20,7 @@ import {
     BREAK_DURATION_SECONDS,
     FOCUS_SESSION_SECONDS,
     calculateRemainingFocusSession,
+    calculateRemainingTaskSeconds,
     isNotThisEligible,
     calculateRemainingNotThisSeconds,
     formatTimeMMSS
@@ -83,9 +84,94 @@ const prefersReducedMotion = () =>
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// Compact, visually clean 5-Minute Focus Session Timer.
-// The Pause button is NOT inside the clock/timer.
-function FocusSessionTimer({ remainingSeconds, isPaused }) {
+// Main Task Duration Timer — reflects the selected task's actual duration (e.g. 30m, 90m, 120m).
+function TaskTimer({ taskMinutes, remainingSeconds, activeWorkSeconds, isPaused }) {
+    const total = Math.max(1, (taskMinutes || 0) * 60);
+    const isOvertime = activeWorkSeconds > total;
+    const progress = Math.min(Math.max(activeWorkSeconds / total, 0), 1);
+
+    const R = 78;
+    const C = 2 * Math.PI * R;
+
+    const label = formatTimeMMSS(remainingSeconds);
+
+    return (
+        <div className={`focus-timer task-timer ${isOvertime ? "over" : ""} ${isPaused ? "timer-paused" : ""}`}>
+            <svg
+                viewBox="0 0 180 180"
+                className="focus-ring"
+                aria-hidden="true"
+            >
+                <defs>
+                    <linearGradient id="task-grad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="var(--accent, #f5f5f5)" />
+                        <stop offset="100%" stopColor="var(--viz-blue, #3987e5)" />
+                    </linearGradient>
+                </defs>
+                <circle className="focus-ring-track" cx="90" cy="90" r={R} />
+                <circle
+                    className="focus-ring-fill"
+                    cx="90"
+                    cy="90"
+                    r={R}
+                    stroke="url(#task-grad)"
+                    strokeDasharray={C}
+                    strokeDashoffset={C * (1 - progress)}
+                    transform="rotate(-90 90 90)"
+                />
+            </svg>
+            <div className="focus-time">
+                <span
+                    className="focus-time-value"
+                    role="timer"
+                    aria-label={`${label} task duration remaining`}
+                >
+                    {label}
+                </span>
+                <span className="focus-time-sub">
+                    {isPaused
+                        ? "paused"
+                        : isOvertime
+                        ? "time reached"
+                        : `${taskMinutes} min task`}
+                </span>
+            </div>
+        </div>
+    );
+}
+
+// Dedicated 5-minute initial focus session tracker — displayed separately from the main task timer
+function FocusSessionCompanion({ remainingFocusSeconds, isPaused }) {
+    const total = FOCUS_SESSION_SECONDS; // 300s
+    const elapsed = Math.min(total, total - remainingFocusSeconds);
+    const pct = Math.min(100, Math.round((elapsed / total) * 100));
+    const isDone = remainingFocusSeconds === 0;
+
+    return (
+        <div className={`focus-companion-card ${isDone ? "completed" : ""} ${isPaused ? "companion-paused" : ""}`}>
+            <div className="companion-header">
+                <span className="companion-badge">5-MIN FOCUS KICKSTART</span>
+                <span className="companion-time">
+                    {isDone ? "Goal reached ✓" : isPaused ? "Paused" : `${formatTimeMMSS(remainingFocusSeconds)} left`}
+                </span>
+            </div>
+            <div className="companion-bar-track">
+                <div
+                    className="companion-bar-fill"
+                    style={{ width: `${pct}%` }}
+                />
+            </div>
+            <p className="companion-hint">
+                {isDone
+                    ? "Initial momentum built! Keep going to finish the task."
+                    : "Commit to the first 5 minutes — build momentum."}
+            </p>
+        </div>
+    );
+}
+
+// Compact, visually clean 5-Minute Focus Session Timer (preserved for component reuse)
+export function FocusSessionTimer({ remainingSeconds, isPaused }) {
     const total = FOCUS_SESSION_SECONDS; // 300 seconds
     const elapsed = total - remainingSeconds;
     const progress = Math.min(Math.max(elapsed / total, 0), 1);
@@ -345,6 +431,10 @@ function FocusLock({ actionId, task, startedAt }) {
     // 5-Minute Focus Session Timer
     const remainingFocusSeconds = calculateRemainingFocusSession(activeWorkSeconds);
 
+    // Selected Task Duration Timer (calculates remaining based on actual task.estimatedTime)
+    const effectiveTaskMinutes = Number(task?.estimatedTime) > 0 ? Number(task.estimatedTime) : 25;
+    const remainingTaskSeconds = calculateRemainingTaskSeconds(effectiveTaskMinutes, activeWorkSeconds);
+
     // 15-Second Not This Eligibility Window
     const notThisEligible = isNotThisEligible(activeWorkSeconds);
     const remainingNotThisSeconds = calculateRemainingNotThisSeconds(activeWorkSeconds);
@@ -580,9 +670,11 @@ function FocusLock({ actionId, task, startedAt }) {
                             {/* 1. TASK NAME */}
                             <h1 className="focus-task-title">{task.title}</h1>
 
-                            {/* 2. 5-MINUTE FOCUS SESSION TIMER (No Pause button inside) */}
-                            <FocusSessionTimer
-                                remainingSeconds={remainingFocusSeconds}
+                            {/* 2. TASK DURATION TIMER (Reflects actual selected task duration: 30m, 90m, custom, etc.) */}
+                            <TaskTimer
+                                taskMinutes={effectiveTaskMinutes}
+                                remainingSeconds={remainingTaskSeconds}
+                                activeWorkSeconds={activeWorkSeconds}
                                 isPaused={isPaused}
                             />
 
@@ -594,6 +686,12 @@ function FocusLock({ actionId, task, startedAt }) {
                             >
                                 {isPaused ? "RESUME" : "PAUSE"}
                             </button>
+
+                            {/* 4. SEPARATE 5-MINUTE FOCUS SESSION COMPANION WIDGET */}
+                            <FocusSessionCompanion
+                                remainingFocusSeconds={remainingFocusSeconds}
+                                isPaused={isPaused}
+                            />
 
                             {/* 4. NOT THIS BUTTON (Enabled first 15s, disabled after) */}
                             <button

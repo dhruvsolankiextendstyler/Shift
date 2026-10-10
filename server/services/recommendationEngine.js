@@ -75,9 +75,15 @@ function getRecommendationScore(
 
     // DURATION FIT: bonus when the task effectively uses the available window
     if (session.availableTime && task.estimatedTime) {
-        const timeRatio = task.estimatedTime / session.availableTime;
-        if (timeRatio >= 0.75 && timeRatio <= 1.0) {
-            score += 10;
+        if (session.isPlus) {
+            if (task.estimatedTime >= session.availableTime) {
+                score += 10;
+            }
+        } else {
+            const timeRatio = task.estimatedTime / session.availableTime;
+            if (timeRatio >= 0.75 && timeRatio <= 1.0) {
+                score += 10;
+            }
         }
     }
 
@@ -136,7 +142,11 @@ function generateWhyThis(task, session, recentTasks = [], pastActions = []) {
 
     // 1. Duration signal
     if (session.availableTime) {
-        reasons.push(`Fits your ${session.availableTime}m window`);
+        if (session.isPlus) {
+            reasons.push("Fits your 1 hr+ window");
+        } else {
+            reasons.push(`Fits your ${session.availableTime}m window`);
+        }
     }
 
     // 2. Energy signal
@@ -186,9 +196,14 @@ function recommendTask(
 
     // Available time is a HARD limit, not a soft nudge: a task the user cannot
     // finish in the window they gave must never be recommended.
-    const fitting = tasks.filter(
-        (task) => task.estimatedTime <= session.availableTime
-    );
+    // When isPlus is true (e.g. "1 hr+"), the user has 60 minutes or more, so
+    // tasks with estimatedTime >= availableTime are eligible (e.g. 60, 90, 120m).
+    const fitting = tasks.filter((task) => {
+        if (session.isPlus) {
+            return task.estimatedTime >= session.availableTime;
+        }
+        return task.estimatedTime <= session.availableTime;
+    });
 
     if (!fitting.length) {
         return null;
