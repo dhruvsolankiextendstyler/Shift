@@ -1,33 +1,51 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchSavedItems, unsaveItem } from "../services/saved";
+import { registerCacheClearHandler } from "../services/api";
 import Modal from "../components/Modal";
 import BookmarkButton from "../components/BookmarkButton";
 import ErrorState from "../components/ErrorState";
 
+let cachedSavedItems = null;
+let lastSavedFetch = 0;
+
+export function clearSavedCache() {
+    cachedSavedItems = null;
+    lastSavedFetch = 0;
+}
+registerCacheClearHandler(clearSavedCache);
+
 export default function Saved() {
-    const [items, setItems] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const hasCache = cachedSavedItems !== null;
+    const [items, setItems] = useState(() => cachedSavedItems || []);
+    const [loading, setLoading] = useState(!hasCache);
     const [error, setError] = useState(false);
     const [tab, setTab] = useState("words"); // "words" | "articles"
     const [search, setSearch] = useState("");
     const [activeItem, setActiveItem] = useState(null);
 
-    const load = useCallback(async () => {
-        setLoading(true);
+    const load = useCallback(async ({ silent = false } = {}) => {
+        if (!silent && cachedSavedItems === null) setLoading(true);
         setError(false);
         try {
             const data = await fetchSavedItems();
+            cachedSavedItems = data;
+            lastSavedFetch = Date.now();
             setItems(data);
         } catch {
-            setError(true);
+            if (cachedSavedItems === null) setError(true);
         } finally {
             setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        load();
+        if (cachedSavedItems && Date.now() - lastSavedFetch < 15000) {
+            setItems(cachedSavedItems);
+            setLoading(false);
+        } else {
+            load({ silent: cachedSavedItems !== null });
+        }
     }, [load]);
 
     const words = useMemo(
@@ -56,6 +74,7 @@ export default function Saved() {
     const handleRemove = async (e, it) => {
         e.stopPropagation();
         await unsaveItem({ type: it.type, itemId: it.itemId, id: it._id });
+        cachedSavedItems = (cachedSavedItems || []).filter((x) => x._id !== it._id);
         setItems((cur) => cur.filter((x) => x._id !== it._id));
         if (activeItem?._id === it._id) {
             setActiveItem(null);

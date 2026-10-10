@@ -60,6 +60,30 @@ router.get("/", async (req, res, next) => {
     }
 });
 
+// GET /api/friends/badge-count — Ultra-lightweight actionable pending notification count
+router.get("/badge-count", async (req, res, next) => {
+    try {
+        const Challenge = require("../models/Challenge");
+        const [incomingFriends, pendingChallenges] = await Promise.all([
+            Friendship.countDocuments({
+                recipient: req.userId,
+                status: "pending"
+            }),
+            Challenge.countDocuments({
+                participant: req.userId,
+                status: "pending"
+            })
+        ]);
+        res.json({
+            count: incomingFriends + pendingChallenges,
+            incomingFriends,
+            pendingChallenges
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
 // GET /api/friends/search?q=... — Search for users by name or email
 router.get("/search", async (req, res, next) => {
     try {

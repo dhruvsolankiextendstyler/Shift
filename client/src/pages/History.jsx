@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { apiFetch } from "../services/api";
+import { apiFetch, registerCacheClearHandler } from "../services/api";
 import { reflectCompletionOnTask } from "../services/resolve";
 import { dayKey } from "./Insights";
 import ErrorState from "../components/ErrorState";
@@ -25,15 +25,25 @@ const KIND_META = {
     article: { label: "Deep Read", mark: "✦" }
 };
 
+let cachedHistoryEntries = null;
+let lastHistoryFetch = 0;
+
+export function clearHistoryCache() {
+    cachedHistoryEntries = null;
+    lastHistoryFetch = 0;
+}
+registerCacheClearHandler(clearHistoryCache);
+
 // One fetch of the merged history; distinguishes loading / error / data so the
 // UI renders each state separately (an error is never masked as "empty").
 function useActivityHistory() {
-    const [entries, setEntries] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const hasCache = cachedHistoryEntries !== null;
+    const [entries, setEntries] = useState(() => cachedHistoryEntries || []);
+    const [loading, setLoading] = useState(!hasCache);
     const [error, setError] = useState(false);
 
-    const load = useCallback(async () => {
-        setLoading(true);
+    const load = useCallback(async ({ silent = false } = {}) => {
+        if (!silent && cachedHistoryEntries === null) setLoading(true);
         setError(false);
         try {
             const [actionsRes, activityRes] = await Promise.all([
@@ -47,17 +57,25 @@ function useActivityHistory() {
                 actionsRes.json(),
                 activityRes.json()
             ]);
-            setEntries(toUnifiedActivities(actions, activities));
+            const unified = toUnifiedActivities(actions, activities);
+            cachedHistoryEntries = unified;
+            lastHistoryFetch = Date.now();
+            setEntries(unified);
         } catch (err) {
             console.error("Failed to load history:", err);
-            setError(true);
+            if (cachedHistoryEntries === null) setError(true);
         } finally {
             setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        load();
+        if (cachedHistoryEntries && Date.now() - lastHistoryFetch < 15000) {
+            setEntries(cachedHistoryEntries);
+            setLoading(false);
+        } else {
+            load({ silent: cachedHistoryEntries !== null });
+        }
     }, [load]);
 
     return { entries, loading, error, reload: load };

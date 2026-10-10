@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { apiFetch, registerCacheClearHandler } from "./api";
 
 export async function fetchFriends() {
     const res = await apiFetch("/friends");
@@ -33,7 +33,9 @@ export async function respondFriendRequest(requestId, action) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to respond to request");
     }
-    return res.json();
+    const result = await res.json();
+    refreshSocialCount();
+    return result;
 }
 
 export async function removeFriend(friendId) {
@@ -64,7 +66,7 @@ export async function fetchChallenges() {
 
 export async function fetchChallengeDetail(id) {
     const res = await apiFetch(`/challenges/${id}`);
-    if (!res.ok) throw new Error("Failed to fetch challenge details");
+    if (!res.ok) throw new Error("Failed to challenge details");
     return res.json();
 }
 
@@ -89,7 +91,9 @@ export async function respondChallenge(id, action) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to respond to challenge");
     }
-    return res.json();
+    const result = await res.json();
+    refreshSocialCount();
+    return result;
 }
 
 export async function cancelChallenge(id) {
@@ -106,8 +110,35 @@ export async function cancelChallenge(id) {
 // -------------------------------------------------------------
 // Actionable Pending Notifications Store & Subscriber Pattern
 // -------------------------------------------------------------
+const SOCIAL_COUNT_STORAGE_KEY = "shift_social_count";
+
+function getInitialCount() {
+    try {
+        const val = localStorage.getItem(SOCIAL_COUNT_STORAGE_KEY);
+        if (val !== null) {
+            const parsed = parseInt(val, 10);
+            return !isNaN(parsed) && parsed > 0 ? parsed : 0;
+        }
+    } catch {}
+    return 0;
+}
+
 const listeners = new Set();
-let cachedCount = 0;
+let cachedCount = getInitialCount();
+let inFlightRefresh = null;
+
+export function clearSocialCache() {
+    cachedCount = 0;
+    try {
+        localStorage.removeItem(SOCIAL_COUNT_STORAGE_KEY);
+    } catch {}
+    listeners.forEach((fn) => {
+        try {
+            fn(0);
+        } catch {}
+    });
+}
+registerCacheClearHandler(clearSocialCache);
 
 export function subscribeSocialCount(listener) {
     listeners.add(listener);
@@ -119,6 +150,9 @@ export function updateSocialCount(count) {
     const validCount = typeof count === "number" && !isNaN(count) ? Math.max(0, count) : 0;
     if (cachedCount !== validCount) {
         cachedCount = validCount;
+        try {
+            localStorage.setItem(SOCIAL_COUNT_STORAGE_KEY, String(cachedCount));
+        } catch {}
         listeners.forEach((fn) => {
             try {
                 fn(cachedCount);
@@ -130,22 +164,43 @@ export function updateSocialCount(count) {
 }
 
 export async function refreshSocialCount() {
-    try {
-        const [friendsRes, challengesRes] = await Promise.all([
-            fetchFriends(),
-            fetchChallenges()
-        ]);
-        const incomingFriends = Array.isArray(friendsRes?.incoming)
-            ? friendsRes.incoming.length
-            : 0;
-        const pendingChallenges = Array.isArray(challengesRes?.pending)
-            ? challengesRes.pending.filter((c) => !c.userIsCreator).length
-            : 0;
-        const total = incomingFriends + pendingChallenges;
-        updateSocialCount(total);
-        return total;
-    } catch {
-        return cachedCount;
-    }
+    if (inFlightRefresh) return inFlightRefresh;
+
+    inFlightRefresh = (async () => {
+        try {
+            // First attempt ultra-fast dedicated count endpoint
+            const countRes = await apiFetch("/friends/badge-count");
+            if (countRes.ok) {
+                const countData = await countRes.json();
+                const total = typeof countData?.count === "number" ? Math.max(0, countData.count) : 0;
+                updateSocialCount(total);
+                return total;
+            }
+        } catch {
+            // Fall back to full queries if dedicated route is not reachable
+        }
+
+        try {
+            const [friendsRes, challengesRes] = await Promise.all([
+                fetchFriends(),
+                fetchChallenges()
+            ]);
+            const incomingFriends = Array.isArray(friendsRes?.incoming)
+                ? friendsRes.incoming.length
+                : 0;
+            const pendingChallenges = Array.isArray(challengesRes?.pending)
+                ? challengesRes.pending.filter((c) => !c.userIsCreator).length
+                : 0;
+            const total = incomingFriends + pendingChallenges;
+            updateSocialCount(total);
+            return total;
+        } catch {
+            return cachedCount;
+        } finally {
+            inFlightRefresh = null;
+        }
+    })();
+
+    return inFlightRefresh;
 }
 

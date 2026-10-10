@@ -18,6 +18,7 @@ import Modal from "../components/Modal";
 import Select from "../components/Select";
 import NumberReveal from "../components/NumberReveal";
 import ErrorState from "../components/ErrorState";
+import { registerCacheClearHandler } from "../services/api";
 
 const CHALLENGE_TYPES = [
     { value: "task", label: "Task Challenge — Complete X activities" },
@@ -41,15 +42,27 @@ function formatMinutes(mins) {
     return `${h}h ${m}m`;
 }
 
+let cachedFriendsData = null;
+let cachedChallengesData = null;
+let lastFriendsFetch = 0;
+
+export function clearFriendsCache() {
+    cachedFriendsData = null;
+    cachedChallengesData = null;
+    lastFriendsFetch = 0;
+}
+registerCacheClearHandler(clearFriendsCache);
+
 export default function FriendsChallenges() {
     const { toast } = useToast();
+    const hasCache = cachedFriendsData !== null && cachedChallengesData !== null;
 
     const [activeTab, setActiveTab] = useState("friends"); // "friends" | "challenges"
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!hasCache);
     const [error, setError] = useState(false);
 
     // Friends state
-    const [friendsData, setFriendsData] = useState({ friends: [], incoming: [], outgoing: [] });
+    const [friendsData, setFriendsData] = useState(() => cachedFriendsData || { friends: [], incoming: [], outgoing: [] });
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [searching, setSearching] = useState(false);
@@ -60,7 +73,7 @@ export default function FriendsChallenges() {
     const [friendProgress, setFriendProgress] = useState(null);
 
     // Challenges state
-    const [challengesData, setChallengesData] = useState({ active: [], pending: [], past: [] });
+    const [challengesData, setChallengesData] = useState(() => cachedChallengesData || { active: [], pending: [], past: [] });
     const [createChallengeOpen, setCreateChallengeOpen] = useState(false);
     const [selectedFriendForChallenge, setSelectedFriendForChallenge] = useState("");
     const [challengeType, setChallengeType] = useState("task");
@@ -132,14 +145,19 @@ export default function FriendsChallenges() {
     };
 
     // Load all data
-    const loadData = useCallback(async () => {
-        setLoading(true);
+    const loadData = useCallback(async ({ silent = false } = {}) => {
+        if (!silent && (cachedFriendsData === null || cachedChallengesData === null)) {
+            setLoading(true);
+        }
         setError(false);
         try {
             const [friendsRes, challengesRes] = await Promise.all([
                 fetchFriends(),
                 fetchChallenges()
             ]);
+            cachedFriendsData = friendsRes;
+            cachedChallengesData = challengesRes;
+            lastFriendsFetch = Date.now();
             setFriendsData(friendsRes);
             setChallengesData(challengesRes);
 
@@ -151,14 +169,22 @@ export default function FriendsChallenges() {
             updateSocialCount(incoming + pending);
         } catch (err) {
             console.error("Failed to load friends/challenges data:", err);
-            setError(true);
+            if (cachedFriendsData === null || cachedChallengesData === null) {
+                setError(true);
+            }
         } finally {
             setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        loadData();
+        if (cachedFriendsData && cachedChallengesData && Date.now() - lastFriendsFetch < 15000) {
+            setFriendsData(cachedFriendsData);
+            setChallengesData(cachedChallengesData);
+            setLoading(false);
+        } else {
+            loadData({ silent: cachedFriendsData !== null && cachedChallengesData !== null });
+        }
     }, [loadData]);
 
     // Handle user search debounce
@@ -757,9 +783,9 @@ export default function FriendsChallenges() {
                                         <span className="avatar-circle">
                                             {(user.name || "?").charAt(0).toUpperCase()}
                                         </span>
-                                        <div>
-                                            <strong>{user.name}</strong>
-                                            <span className="user-email">{user.email}</span>
+                                        <div className="search-user-meta">
+                                            <strong className="search-user-name">{user.name}</strong>
+                                            <span className="user-email" title={user.email}>{user.email}</span>
                                         </div>
                                     </div>
 

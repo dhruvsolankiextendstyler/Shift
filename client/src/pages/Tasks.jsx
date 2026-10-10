@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiFetch } from "../services/api";
+import { apiFetch, registerCacheClearHandler } from "../services/api";
 import { useToast } from "../context/ToastContext";
 import ErrorState from "../components/ErrorState";
 import Modal from "../components/Modal";
@@ -7,12 +7,21 @@ import TaskFormFields from "../components/TaskFormFields";
 import { useIsMobile } from "../hooks/useIsMobile";
 import Footer from "../components/Footer";
 
+let cachedTasks = null;
+let lastTasksFetch = 0;
+
+export function clearTasksCache() {
+    cachedTasks = null;
+    lastTasksFetch = 0;
+}
+registerCacheClearHandler(clearTasksCache);
+
 function Tasks() {
     const { toast } = useToast();
     const isMobile = useIsMobile();
 
-    const [tasks, setTasks] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [tasks, setTasks] = useState(() => cachedTasks || []);
+    const [loading, setLoading] = useState(() => cachedTasks === null);
     const [error, setError] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -27,23 +36,35 @@ function Tasks() {
     const [editingId, setEditingId] = useState(null);
     const [deletingTask, setDeletingTask] = useState(null);
 
-    const fetchTasks = async () => {
-        setLoading(true);
+    const fetchTasks = async (force = false) => {
+        if (!cachedTasks) {
+            setLoading(true);
+        }
         setError(false);
         try {
             const response = await apiFetch("/tasks");
             if (!response.ok) throw new Error("Request failed");
-            setTasks(await response.json());
+            const data = await response.json();
+            cachedTasks = data;
+            lastTasksFetch = Date.now();
+            setTasks(data);
         } catch (err) {
             console.error("Fetch tasks error:", err);
-            setError(true);
+            if (!cachedTasks) {
+                setError(true);
+            }
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchTasks();
+        if (cachedTasks && Date.now() - lastTasksFetch < 15000) {
+            setTasks(cachedTasks);
+            setLoading(false);
+        } else {
+            fetchTasks();
+        }
     }, []);
 
     const resetForm = () => {

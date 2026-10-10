@@ -11,9 +11,25 @@ export function setToken(token) {
     localStorage.setItem(TOKEN_KEY, token);
 }
 
+const cacheClearHandlers = new Set();
+
+export function registerCacheClearHandler(fn) {
+    cacheClearHandlers.add(fn);
+    return () => cacheClearHandlers.delete(fn);
+}
+
+export function clearAllCaches() {
+    cacheClearHandlers.forEach((fn) => {
+        try {
+            fn();
+        } catch {}
+    });
+}
+
 export function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    clearAllCaches();
 }
 
 // Cached user lets the app render instantly on reload instead of blocking

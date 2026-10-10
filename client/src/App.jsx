@@ -33,6 +33,7 @@ import Footer from "./components/Footer";
 import ToolsMenu from "./components/ToolsMenu";
 import OfflineIndicator from "./components/OfflineIndicator";
 import { useSocialNotifications } from "./hooks/useSocialNotifications";
+import { clearSocialCache } from "./services/social";
 
 function AppShell() {
     const { user, loading, logout: rawLogout } = useAuth();
@@ -40,14 +41,19 @@ function AppShell() {
     const location = useLocation();
     const isMobile = useIsMobile();
     const activeAction = useActiveAction();
+    useSocialNotifications(Boolean(user));
 
     const [confirmingLogout, setConfirmingLogout] = useState(false);
     const logout = () => setConfirmingLogout(true);
 
-    // If the user has zero tasks and is on the root page, directly land on TASKS
+    const hasCheckedInitialTasks = useRef(false);
+
+    // If the user has zero tasks and is on the root page, directly land on TASKS (initial load only)
     useEffect(() => {
         if (!user) return;
         if (location.pathname !== "/") return;
+        if (hasCheckedInitialTasks.current) return;
+        hasCheckedInitialTasks.current = true;
 
         let cancelled = false;
         apiFetch("/tasks")
@@ -136,6 +142,7 @@ function AppShell() {
                         className="danger-button"
                         onClick={() => {
                             setConfirmingLogout(false);
+                            clearSocialCache();
                             rawLogout();
                         }}
                     >

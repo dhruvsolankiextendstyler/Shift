@@ -17,6 +17,9 @@ import { useIsMobile } from "../hooks/useIsMobile";
 const flowCache = {
     category: "",
     time: "",
+    isCustom: false,
+    customMinutes: "",
+    categories: null,
     sessionId: "",
     recommendation: null,
     emptyReason: null
@@ -25,6 +28,8 @@ const flowCache = {
 function resetFlowCache() {
     flowCache.category = "";
     flowCache.time = "";
+    flowCache.isCustom = false;
+    flowCache.customMinutes = "";
     flowCache.sessionId = "";
     flowCache.recommendation = null;
     flowCache.emptyReason = null;
@@ -36,9 +41,12 @@ function Now({ active = true }) {
 
     const [category, setCategory] = useState(flowCache.category);
     const [time, setTime] = useState(flowCache.time);
+    const [isCustom, setIsCustom] = useState(flowCache.isCustom || false);
+    const [customMinutes, setCustomMinutes] = useState(flowCache.customMinutes || "");
+    const [customError, setCustomError] = useState("");
 
-    const [categories, setCategories] = useState([]);
-    const [categoriesLoading, setCategoriesLoading] = useState(true);
+    const [categories, setCategories] = useState(() => flowCache.categories || []);
+    const [categoriesLoading, setCategoriesLoading] = useState(() => flowCache.categories === null);
 
     const [sessionId, setSessionId] = useState(flowCache.sessionId);
     const [recommendation, setRecommendation] = useState(
@@ -76,6 +84,7 @@ function Now({ active = true }) {
                                 .filter(Boolean)
                         )
                     ].sort((a, b) => a.localeCompare(b));
+                    flowCache.categories = activeCategories;
                     setCategories(activeCategories);
                 }
             } catch (err) {
@@ -90,25 +99,101 @@ function Now({ active = true }) {
         return () => {
             mounted = false;
         };
-    }, [active]);
+    }, [active, navigate]);
 
     // Mirror the flow into the module cache so it's there when Now remounts.
     useEffect(() => {
         flowCache.category = category;
         flowCache.time = time;
+        flowCache.isCustom = isCustom;
+        flowCache.customMinutes = customMinutes;
         flowCache.sessionId = sessionId;
         flowCache.recommendation = recommendation;
         flowCache.emptyReason = emptyReason;
-    }, [category, time, sessionId, recommendation, emptyReason]);
+    }, [category, time, isCustom, customMinutes, sessionId, recommendation, emptyReason]);
+
+    const handlePresetTime = (preset) => {
+        setIsCustom(false);
+        setTime(preset);
+        setCustomError("");
+        if (message) setMessage("");
+    };
+
+    const handleSelectCustom = () => {
+        setIsCustom(true);
+        setCustomError("");
+        if (message) setMessage("");
+        if (customMinutes) {
+            const val = Number(customMinutes);
+            if (Number.isInteger(val) && val > 0 && val <= 1440) {
+                setTime(val);
+            } else {
+                setTime("");
+            }
+        } else {
+            setTime("");
+        }
+    };
+
+    const handleCustomChange = (e) => {
+        const valStr = e.target.value;
+        setCustomMinutes(valStr);
+        if (message) setMessage("");
+
+        if (!valStr.trim()) {
+            setCustomError("");
+            setTime("");
+            return;
+        }
+
+        const val = Number(valStr);
+        if (!Number.isInteger(val) || val <= 0) {
+            setCustomError("Enter a positive whole number of minutes.");
+            setTime("");
+        } else if (val > 1440) {
+            setCustomError("Duration cannot exceed 1440 minutes (24 hours).");
+            setTime("");
+        } else {
+            setCustomError("");
+            setTime(val);
+        }
+    };
 
     const handleSubmit = async () => {
-        if (!category || !time) {
-            setMessage("Pick what you want to do and how much time you have.");
+        if (!category) {
+            setMessage("Pick what you want to do first.");
+            return;
+        }
+
+        let effectiveTime = time;
+
+        if (isCustom) {
+            const valStr = customMinutes.trim();
+            if (!valStr) {
+                setCustomError("Enter a duration in minutes.");
+                setMessage("Please enter your custom duration in minutes.");
+                return;
+            }
+            const val = Number(valStr);
+            if (!Number.isInteger(val) || val <= 0) {
+                setCustomError("Enter a positive whole number of minutes.");
+                setMessage("Please enter a valid whole number of minutes.");
+                return;
+            }
+            if (val > 1440) {
+                setCustomError("Duration cannot exceed 1440 minutes (24 hours).");
+                setMessage("Duration cannot exceed 1440 minutes.");
+                return;
+            }
+            effectiveTime = val;
+        } else if (!time) {
+            setMessage("Pick how much time you have.");
             return;
         }
 
         setLoading(true);
         setEmptyReason(null);
+        setCustomError("");
 
         try {
             // Surprise Me sends null as category, triggering general recommendation
@@ -119,7 +204,7 @@ function Now({ active = true }) {
                 method: "POST",
                 body: JSON.stringify({
                     category: selectedCategory,
-                    availableTime: time
+                    availableTime: effectiveTime
                 })
             });
 
@@ -177,6 +262,9 @@ function Now({ active = true }) {
         resetFlowCache();
         setCategory("");
         setTime("");
+        setIsCustom(false);
+        setCustomMinutes("");
+        setCustomError("");
         setSessionId("");
         setRecommendation(null);
         setEmptyReason(null);
@@ -281,23 +369,60 @@ function Now({ active = true }) {
                     <div className="checkin-section">
                         <h2>Got a minute? Or a few?</h2>
 
-                        <div className="option-grid four">
+                        <div className="option-grid five">
                             {[5, 15, 30, 60].map((item) => (
                                 <button
                                     key={item}
+                                    type="button"
                                     className={`option-button ${
-                                        time === item
+                                        !isCustom && time === item
                                             ? "selected"
                                             : ""
                                     }`}
-                                    onClick={() => setTime(item)}
+                                    onClick={() => handlePresetTime(item)}
                                 >
                                     {item === 60
-                                        ? "1 hour+"
+                                        ? "1 hr+"
                                         : `${item} min`}
                                 </button>
                             ))}
+                            <button
+                                type="button"
+                                className={`option-button ${
+                                    isCustom ? "selected" : ""
+                                }`}
+                                onClick={handleSelectCustom}
+                            >
+                                Custom
+                            </button>
                         </div>
+
+                        {isCustom && (
+                            <div className="custom-duration-wrap">
+                                <div className="custom-duration-input-box">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="1440"
+                                        step="1"
+                                        placeholder="Enter minutes"
+                                        value={customMinutes}
+                                        onChange={handleCustomChange}
+                                        className={`custom-duration-input ${
+                                            customError ? "has-error" : ""
+                                        }`}
+                                        aria-label="Custom duration in minutes"
+                                        autoFocus
+                                    />
+                                    <span className="custom-duration-unit">min</span>
+                                </div>
+                                {customError && (
+                                    <p className="custom-duration-error" role="alert">
+                                        {customError}
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {message && (

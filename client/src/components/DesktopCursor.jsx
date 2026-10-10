@@ -53,8 +53,8 @@ export default function DesktopCursor() {
             angle: 0
         }));
 
-        // Slower, fluid lerp factors so the trail sweeps with gentle inertia
-        const lerpFactors = [0.24, 0.18, 0.13, 0.09, 0.065, 0.045, 0.03];
+        // Responsive lerp factors so the trail follows the cursor closely without lag
+        const lerpFactors = [0.55, 0.46, 0.38, 0.31, 0.25, 0.20, 0.16];
         // Tapered-comet thickness profile: slightly thicker at head, smoothly tapering to tail
         const scales = [1.20, 1.00, 0.82, 0.65, 0.48, 0.32, 0.18];
         const opacities = [0.65, 0.54, 0.44, 0.34, 0.25, 0.18, 0.12];
