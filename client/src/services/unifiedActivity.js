@@ -7,6 +7,11 @@ export function toUnifiedActivities(actions = [], activities = []) {
         const task = a.taskId || {};
         const date = new Date(a.completedAt || a.createdAt);
         const origin = a.source === "manual" ? "manual" : "recommended";
+        // `minutes` = time actually SPENT (actual focused time). null = unknown
+        // (started/skipped, or a historical completion with no timer reading).
+        // Never the estimate — that lives in `estimatedMinutes`, for planning
+        // context in the detail view only.
+        const actual = Number.isFinite(a.actualMinutes) ? a.actualMinutes : null;
         return {
             id: a._id,
             kind: "task",
@@ -14,7 +19,8 @@ export function toUnifiedActivities(actions = [], activities = []) {
             source: origin, // "recommended" | "manual"
             title: task.title || "Task",
             category: task.category || "General",
-            minutes: task.estimatedTime ?? null,
+            minutes: actual,
+            estimatedMinutes: task.estimatedTime ?? null,
             status: a.status,
             feedback: a.feedback || null,
             note: a.note || "",
@@ -34,6 +40,7 @@ export function toUnifiedActivities(actions = [], activities = []) {
             title: v.title || (isArticle ? "Article Briefing" : "Word Forge"),
             category: isArticle ? "Reading" : "Vocabulary",
             minutes: isArticle ? 3 : 1,
+            estimatedMinutes: null,
             status: "completed",
             feedback: null,
             note: "",

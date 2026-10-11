@@ -57,6 +57,19 @@ const actionSchema = new mongoose.Schema(
 
         completedAt: {
             type: Date
+        },
+
+        // Actual focused time (minutes) the user spent actively working — the
+        // task timer's accumulated active seconds at completion, EXCLUDING
+        // paused and break time (see client timerBreak.calculateActiveWorkSeconds).
+        // This, not the task's estimatedTime, is the source of truth for every
+        // "time spent" statistic. null = unknown: historical records predating
+        // this field, or a task resolved without a trustworthy timer reading
+        // (e.g. marked done from History). Never derived from estimatedTime.
+        actualMinutes: {
+            type: Number,
+            default: null,
+            min: 0
         }
     },
     {

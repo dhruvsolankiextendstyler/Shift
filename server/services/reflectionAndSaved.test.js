@@ -37,8 +37,8 @@ function computeDailyReflection(actions = [], activities = [], targetDate = new 
         if (cat) {
             categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
         }
-        if (typeof a.taskId?.estimatedTime === "number") {
-            totalMinutes += a.taskId.estimatedTime;
+        if (typeof a.actualMinutes === "number" && Number.isFinite(a.actualMinutes)) {
+            totalMinutes += a.actualMinutes;
         }
         if (a.source === "manual") {
             manualCount++;
@@ -149,16 +149,19 @@ test("Daily reflection computes accurate totals and categories from real actions
         {
             status: "completed",
             completedAt: today,
+            actualMinutes: 5, // estimated 30, but only 5 min actually focused
             taskId: { title: "Study B-Trees", category: "Computer Science", estimatedTime: 30 }
         },
         {
             status: "completed",
             completedAt: today,
+            actualMinutes: 20,
             taskId: { title: "Review BrahMos Paper", category: "Defence", estimatedTime: 20 }
         },
         {
             status: "skipped", // Should NOT count toward completed reflection
             completedAt: today,
+            actualMinutes: null,
             taskId: { title: "Skipped task", category: "General", estimatedTime: 10 }
         }
     ];
@@ -173,7 +176,8 @@ test("Daily reflection computes accurate totals and categories from real actions
     assert.equal(reflection.vocabCount, 1);
     assert.equal(reflection.readCount, 0);
     assert.equal(reflection.categoryCount, 2);
-    assert.equal(reflection.totalMinutes, 50);
+    // Actual focused time (5 + 20), NOT the estimates (30 + 20).
+    assert.equal(reflection.totalMinutes, 25);
     assert.equal(reflection.hasData, true);
     assert.ok(reflection.observation.includes("2 categories"));
 });

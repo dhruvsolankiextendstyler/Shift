@@ -78,7 +78,12 @@ router.post("/manual", async (req, res) => {
             source:      "manual",
             status:      "completed",
             startedAt:   resolvedAt,
-            completedAt: resolvedAt
+            completedAt: resolvedAt,
+            // Manual log = the user reporting a task they already finished. The
+            // single time they enter IS their actual time spent (there was never
+            // a separate plan), so it's a user-provided actual, not a fabricated
+            // derivation from an estimate.
+            actualMinutes: Number(estimatedTime)
         });
 
         // Populate taskId so the response mirrors GET /actions shape.
@@ -95,20 +100,40 @@ router.put("/:id", async (req, res) => {
         // Never let the client reassign ownership.
         const { user, ...updates } = req.body;
 
-        const action = await Action.findOneAndUpdate(
-            { _id: req.params.id, user: req.userId },
-            updates,
-            {
-                returnDocument: "after",
-                runValidators: true
-            }
-        );
+        const action = await Action.findOne({
+            _id: req.params.id,
+            user: req.userId
+        });
 
         if (!action) {
             return res.status(404).json({
                 error: "Action not found"
             });
         }
+
+        // Idempotent completion: once an action is completed, its actualMinutes
+        // and completedAt are authoritative. A duplicate/retried "complete"
+        // (double-tap, flaky network) must not rewrite them with a slightly
+        // different reading. Feedback and note can still be updated afterwards.
+        if (action.status === "completed" && updates.status === "completed") {
+            delete updates.status;
+            delete updates.completedAt;
+            delete updates.actualMinutes;
+        }
+
+        // Validate actualMinutes when supplied: a finite, non-negative number.
+        // Anything else is dropped rather than persisted as garbage.
+        if ("actualMinutes" in updates) {
+            const m = Number(updates.actualMinutes);
+            if (Number.isFinite(m) && m >= 0) {
+                updates.actualMinutes = Math.round(m);
+            } else {
+                delete updates.actualMinutes;
+            }
+        }
+
+        Object.assign(action, updates);
+        await action.save();
 
         res.json(action);
     } catch (error) {

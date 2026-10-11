@@ -8,6 +8,15 @@ function dayKey(d) {
     return `${x.getFullYear()}-${m}-${day}`;
 }
 
+// Actual focused minutes for a completed action — the single source of truth
+// for "time spent". Returns the timer-measured actualMinutes, or 0 when it's
+// unknown (null). We deliberately do NOT fall back to the task's estimatedTime:
+// counting an estimate as time actually focused is exactly the bug this fixes.
+function actionFocusMinutes(action) {
+    const m = action && action.actualMinutes;
+    return Number.isFinite(m) && m >= 0 ? m : 0;
+}
+
 // Calculate high-level weekly summary for a friend profile view.
 // STRICT PRIVACY: Returns only aggregate numbers and category counts.
 // Never exposes individual task titles, notes, timestamps, or history.
@@ -46,10 +55,8 @@ async function getWeeklyStatsForUser(userId) {
         const cat = a.taskId?.category || "Other";
         categoryMap[cat] = (categoryMap[cat] || 0) + 1;
 
-        const est = typeof a.taskId?.estimatedTime === "number" && a.taskId.estimatedTime > 0
-            ? a.taskId.estimatedTime
-            : 15;
-        focusMinutes += est;
+        // Friend-facing "focus time" = actual focused minutes, not the estimate.
+        focusMinutes += actionFocusMinutes(a);
     });
 
     activities.forEach((v) => {
@@ -134,14 +141,11 @@ async function calculateChallengeParticipantProgress(userId, challenge) {
         }
 
         case "focus": {
-            // Focus-Time Challenge: accumulated qualifying focus minutes
+            // Focus-Time Challenge: accumulated qualifying ACTUAL focused minutes.
             let mins = 0;
 
             actions.forEach((a) => {
-                const est = typeof a.taskId?.estimatedTime === "number" && a.taskId.estimatedTime > 0
-                    ? a.taskId.estimatedTime
-                    : 15;
-                mins += est;
+                mins += actionFocusMinutes(a);
             });
 
             activities.forEach((v) => {
@@ -276,6 +280,7 @@ function resolveChallengeEditRequest(challenge, action) {
 
 module.exports = {
     dayKey,
+    actionFocusMinutes,
     getWeeklyStatsForUser,
     calculateChallengeParticipantProgress,
     evaluateChallengeState,

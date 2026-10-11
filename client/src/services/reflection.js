@@ -34,8 +34,10 @@ export function computeDailyReflection(actions = [], activities = [], targetDate
         if (cat) {
             categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
         }
-        if (typeof a.taskId?.estimatedTime === "number") {
-            totalMinutes += a.taskId.estimatedTime;
+        // Focus time = actual focused minutes only. Unknown (null) contributes
+        // nothing — never substitute the estimate.
+        if (Number.isFinite(a.actualMinutes)) {
+            totalMinutes += a.actualMinutes;
         }
         if (a.source === "manual") {
             manualCount++;
@@ -136,8 +138,9 @@ export function computeWeeklyReflection(actions = [], activities = [], reference
         if (cat) {
             categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
         }
-        if (typeof a.taskId?.estimatedTime === "number") {
-            totalMinutes += a.taskId.estimatedTime;
+        // Weekly focus time = actual focused minutes only (unknown contributes 0).
+        if (Number.isFinite(a.actualMinutes)) {
+            totalMinutes += a.actualMinutes;
         }
         const ref = a.completedAt || a.createdAt;
         if (ref) activeDays.add(dayKey(ref));

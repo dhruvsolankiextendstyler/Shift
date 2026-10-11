@@ -25,6 +25,24 @@ const KIND_META = {
     article: { label: "Deep Read", mark: "✦" }
 };
 
+// Time pieces for an entry's meta line. For tasks, actual focused time is the
+// headline; the estimate is shown only as planning context (labelled "planned"),
+// never as time spent. Unknown actual time (null) is distinct from "0 min
+// focused" — it simply shows the plan, or nothing.
+function timeMetaBits(e) {
+    if (e.kind !== "task") {
+        return e.minutes != null ? [`${e.minutes} min`] : [];
+    }
+    if (e.minutes != null) {
+        const bits = [`${e.minutes} min focused`];
+        if (e.estimatedMinutes != null && e.estimatedMinutes !== e.minutes) {
+            bits.push(`est ${e.estimatedMinutes} min`);
+        }
+        return bits;
+    }
+    return e.estimatedMinutes != null ? [`est ${e.estimatedMinutes} min`] : [];
+}
+
 let cachedHistoryEntries = null;
 let lastHistoryFetch = 0;
 
@@ -500,9 +518,7 @@ function History({ active = true }) {
                                         <p className="cal-item-meta">
                                             {[
                                                 e.category,
-                                                e.minutes != null
-                                                    ? `${e.minutes} min`
-                                                    : null,
+                                                ...timeMetaBits(e),
                                                 e.date.toLocaleTimeString(
                                                     undefined,
                                                     {

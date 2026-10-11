@@ -566,9 +566,16 @@ function FocusLock({ actionId, task, startedAt }) {
     const completeAction = async () => {
         suspendSync();
         try {
+            // Actual focused time = the timer's accumulated active seconds right
+            // now, excluding every pause and break. This — not the estimate —
+            // is what History / Insights / challenges record as time spent.
+            const activeSecs = calculateActiveWorkSeconds(timerState, Date.now());
+            const actualMinutes = Math.max(0, Math.round(activeSecs / 60));
+
             const res = await putAction({
                 status: "completed",
                 completedAt: new Date(),
+                actualMinutes,
                 ...notePatch()
             });
             if (!res) return;

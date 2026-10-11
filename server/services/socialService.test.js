@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
     dayKey,
+    actionFocusMinutes,
     evaluateChallengeState
 } = require("./socialService");
 
@@ -9,6 +10,19 @@ test("dayKey formats dates consistently as YYYY-MM-DD", () => {
     const d = new Date("2026-10-07T12:00:00Z");
     const key = dayKey(d);
     assert.match(key, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test("actionFocusMinutes returns actual focused time, never the estimate", () => {
+    // Core bug fix: estimated 135 min but only 5 min actually focused.
+    assert.equal(actionFocusMinutes({ actualMinutes: 5, taskId: { estimatedTime: 135 } }), 5);
+    // Zero focused is a real, known value — not treated as unknown.
+    assert.equal(actionFocusMinutes({ actualMinutes: 0, taskId: { estimatedTime: 60 } }), 0);
+    // Unknown (null / missing) contributes nothing — no estimate fallback.
+    assert.equal(actionFocusMinutes({ actualMinutes: null, taskId: { estimatedTime: 90 } }), 0);
+    assert.equal(actionFocusMinutes({ taskId: { estimatedTime: 90 } }), 0);
+    // Garbage is ignored.
+    assert.equal(actionFocusMinutes({ actualMinutes: -4 }), 0);
+    assert.equal(actionFocusMinutes({ actualMinutes: "nope" }), 0);
 });
 
 test("evaluateChallengeState respects pending, declined, and cancelled states", () => {
